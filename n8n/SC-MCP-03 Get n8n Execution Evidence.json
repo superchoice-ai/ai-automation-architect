@@ -1,0 +1,138 @@
+{
+  "name": "SC-MCP-03 Get n8n Execution Evidence",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "execution_id"
+            },
+            {
+              "name": "include_node_summary",
+              "type": "boolean"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        160,
+        160
+      ],
+      "id": "b2030000-0000-4000-8000-000000000001",
+      "name": "When executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const incoming = $input.first()?.json ?? {};\nlet input = incoming.input ?? incoming;\nif (typeof input === 'string') input = JSON.parse(input);\nconst executionId = String(input.execution_id ?? '').trim();\nif (!/^\\d+$/.test(executionId)) throw new Error('execution_id must be numeric');\nlet includeNodeSummary = input.include_node_summary;\nif (includeNodeSummary === undefined || includeNodeSummary === null) includeNodeSummary = true;\nif (typeof includeNodeSummary === 'string') {\n  if (includeNodeSummary.trim().toLowerCase() === 'true') includeNodeSummary = true;\n  else if (includeNodeSummary.trim().toLowerCase() === 'false') includeNodeSummary = false;\n}\nif (typeof includeNodeSummary !== 'boolean') throw new Error('include_node_summary must be boolean');\nreturn [{ json: { execution_id: executionId, include_node_summary: includeNodeSummary } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        160
+      ],
+      "id": "b2030000-0000-4000-8000-000000000002",
+      "name": "Validate Read Request"
+    },
+    {
+      "parameters": {
+        "url": "=https://superchoiceai.app.n8n.cloud/api/v1/executions/{{ $json.execution_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "includeData",
+              "value": "={{ $json.include_node_summary }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        640,
+        160
+      ],
+      "id": "b2030000-0000-4000-8000-000000000003",
+      "name": "n8n API - Get Execution"
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first()?.json ?? {};\nconst requested = $('Validate Read Request').first().json;\nconst statusCode = Number(response.statusCode ?? 200);\nconst body = response.body ?? response.data ?? response;\nif (statusCode >= 400) {\n  const message = String(body?.message ?? 'n8n API read failed').replace(/(token|secret|password|authorization|cookie)([\\\"']?\\s*[:=]\\s*[\\\"']?)[^\\\"',}\\s]+/gi, '$1$2[REDACTED]');\n  throw new Error('Execution evidence read failed with HTTP ' + statusCode + ': ' + message.slice(0, 200));\n}\n\nfunction redact(value) {\n  return String(value ?? '')\n    .replace(/(bearer\\s+)[^\\s\\\"']+/gi, '$1[REDACTED]')\n    .replace(/(token|secret|password|authorization|cookie|signature|api[_-]?key)([\\\"']?\\s*[:=]\\s*[\\\"']?)[^\\\"',}\\s]+/gi, '$1$2[REDACTED]')\n    .slice(0, 500);\n}\n\nconst workflowData = body.workflowData ?? body.data?.workflowData ?? {};\nconst resultData = body.data?.resultData ?? body.resultData ?? {};\nconst runData = resultData.runData && typeof resultData.runData === 'object' ? resultData.runData : {};\nconst nodes = requested.include_node_summary ? Object.entries(runData).map(([nodeName, runs]) => {\n  const list = Array.isArray(runs) ? runs : [];\n  const last = list[list.length - 1] ?? {};\n  const itemCount = Array.isArray(last.data?.main) ? last.data.main.reduce((sum, branch) => sum + (Array.isArray(branch) ? branch.length : 0), 0) : 0;\n  return {\n    node_name: nodeName,\n    status: last.error ? 'error' : 'success',\n    start_time: last.startTime ?? null,\n    execution_time_ms: last.executionTime ?? null,\n    item_count: itemCount,\n    error_summary: last.error ? redact(last.error.message ?? last.error.description ?? last.error) : null\n  };\n}) : [];\n\nconst topError = resultData.error ?? body.error ?? null;\nreturn [{ json: {\n  ok: true,\n  sanitized: true,\n  execution_id: String(body.id ?? requested.execution_id),\n  workflow_id: String(body.workflowId ?? workflowData.id ?? ''),\n  workflow_name: String(workflowData.name ?? body.workflowName ?? ''),\n  status: String(body.status ?? (body.finished ? 'success' : topError ? 'error' : 'unknown')),\n  mode: String(body.mode ?? ''),\n  started_at: body.startedAt ?? null,\n  stopped_at: body.stoppedAt ?? null,\n  finished: Boolean(body.finished),\n  retry_of: body.retryOf ?? null,\n  retry_success_id: body.retrySuccessId ?? null,\n  node_count: nodes.length,\n  nodes,\n  error_summary: topError ? redact(topError.message ?? topError.description ?? topError) : null,\n  omitted: ['credentials','headers','tokens','signatures','node_payloads','binary_data','customer_content']\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        160
+      ],
+      "id": "b2030000-0000-4000-8000-000000000004",
+      "name": "Return Sanitized Evidence"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Validate Read Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Read Request": {
+      "main": [
+        [
+          {
+            "node": "n8n API - Get Execution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "n8n API - Get Execution": {
+      "main": [
+        [
+          {
+            "node": "Return Sanitized Evidence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "b2030000-0000-4000-8000-000000000100",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "nodeGroups": [],
+  "tags": []
+}

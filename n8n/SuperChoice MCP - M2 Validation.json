@@ -1,0 +1,184 @@
+{
+  "name": "SuperChoice MCP - M2 Validation",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "superchoice-m2-validation"
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpTrigger",
+      "typeVersion": 2,
+      "position": [
+        560,
+        160
+      ],
+      "id": "b2000000-0000-4000-8000-000000000001",
+      "name": "MCP Server Trigger",
+      "webhookId": "b2000000-0000-4000-8000-000000000002"
+    },
+    {
+      "parameters": {
+        "description": "Run an approved M2 validation suite without changing or activating production workflows. Always use dry_run=true first. Cases must use allowlisted HTTPS endpoints and must not contain credentials, tokens, cookies, signatures, or customer data.",
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_SC_MCP_02_WORKFLOW_ID",
+          "mode": "list",
+          "cachedResultUrl": "",
+          "cachedResultName": "SC-MCP-02 Run M2 Validation Suite"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "suite_id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('suite_id', 'Required approved M2 validation suite identifier.', 'string') }}",
+            "dry_run": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('dry_run', 'Required boolean safety switch. Use true first; false only after reviewing the plan.', 'boolean') }}",
+            "allowed_hosts": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('allowed_hosts', 'Required JSON array of exact HTTPS hostnames allowed for this run.', 'json') }}",
+            "cases": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('cases', 'Required JSON array of validation cases. Each case contains case_id, method, url, optional headers/body, expected_status, and optional expected_body_contains.', 'json') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "suite_id",
+              "displayName": "suite_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "dry_run",
+              "displayName": "dry_run",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "boolean",
+              "removed": false
+            },
+            {
+              "id": "allowed_hosts",
+              "displayName": "allowed_hosts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "array",
+              "removed": false
+            },
+            {
+              "id": "cases",
+              "displayName": "cases",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "array",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        880,
+        80
+      ],
+      "id": "b2000000-0000-4000-8000-000000000003",
+      "name": "run_m2_validation_suite"
+    },
+    {
+      "parameters": {
+        "description": "Read one n8n execution by ID and return sanitized evidence only: execution metadata, workflow identity, timestamps, status, and node summaries. Never return credentials, request headers, tokens, signatures, binary data, or node payloads.",
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_SC_MCP_03_WORKFLOW_ID",
+          "mode": "list",
+          "cachedResultUrl": "",
+          "cachedResultName": "SC-MCP-03 Get n8n Execution Evidence"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "execution_id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('execution_id', 'Required numeric n8n execution ID.', 'string') }}",
+            "include_node_summary": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('include_node_summary', 'Boolean. Include sanitized node names, timings, status, and item counts only.', 'boolean') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "execution_id",
+              "displayName": "execution_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "include_node_summary",
+              "displayName": "include_node_summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "boolean",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        880,
+        240
+      ],
+      "id": "b2000000-0000-4000-8000-000000000004",
+      "name": "get_n8n_execution_evidence"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "run_m2_validation_suite": {
+      "ai_tool": [
+        [
+          {
+            "node": "MCP Server Trigger",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_n8n_execution_evidence": {
+      "ai_tool": [
+        [
+          {
+            "node": "MCP Server Trigger",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "b2000000-0000-4000-8000-000000000100",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "nodeGroups": [],
+  "tags": []
+}

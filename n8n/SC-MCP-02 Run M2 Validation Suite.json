@@ -1,0 +1,244 @@
+{
+  "name": "SC-MCP-02 Run M2 Validation Suite",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "suite_id"
+            },
+            {
+              "name": "dry_run",
+              "type": "boolean"
+            },
+            {
+              "name": "allowed_hosts",
+              "type": "array"
+            },
+            {
+              "name": "cases",
+              "type": "array"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        160,
+        160
+      ],
+      "id": "b2020000-0000-4000-8000-000000000001",
+      "name": "When executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const incoming = $input.first()?.json ?? {};\nlet input = incoming.input ?? incoming;\nif (typeof input === 'string') input = JSON.parse(input);\n\nfunction parseArray(value, name) {\n  if (typeof value === 'string') {\n    try { value = JSON.parse(value); } catch { throw new Error(name + ' must be valid JSON'); }\n  }\n  if (!Array.isArray(value)) throw new Error(name + ' must be an array');\n  return value;\n}\n\nconst suiteId = String(input.suite_id ?? '').trim();\nif (!suiteId) throw new Error('Missing required input: suite_id');\n\nlet dryRun = input.dry_run;\nif (typeof dryRun === 'string') {\n  if (dryRun.trim().toLowerCase() === 'true') dryRun = true;\n  else if (dryRun.trim().toLowerCase() === 'false') dryRun = false;\n}\nif (typeof dryRun !== 'boolean') throw new Error('dry_run must be explicitly boolean');\n\nconst allowedHosts = parseArray(input.allowed_hosts, 'allowed_hosts').map(v => String(v).trim().toLowerCase()).filter(Boolean);\nif (!allowedHosts.length) throw new Error('allowed_hosts must be non-empty');\nif (allowedHosts.some(h => h.includes('/') || h.includes(':'))) throw new Error('allowed_hosts must contain hostnames only');\n\nconst cases = parseArray(input.cases, 'cases');\nif (!cases.length || cases.length > 100) throw new Error('cases must contain 1 to 100 items');\n\nconst blockedHeaders = new Set(['authorization','cookie','set-cookie','x-api-key','x-n8n-api-key','x-sc-proxy-token','x-line-signature']);\nconst ids = new Set();\n\nreturn cases.map((testCase, index) => {\n  if (!testCase || typeof testCase !== 'object' || Array.isArray(testCase)) throw new Error('Invalid case at index ' + index);\n  const caseId = String(testCase.case_id ?? '').trim();\n  if (!caseId) throw new Error('case_id is required at index ' + index);\n  if (ids.has(caseId)) throw new Error('Duplicate case_id: ' + caseId);\n  ids.add(caseId);\n\n  const method = String(testCase.method ?? 'POST').trim().toUpperCase();\n  if (!['GET','POST','PUT','PATCH','DELETE'].includes(method)) throw new Error('Unsupported method for ' + caseId);\n\n  let url;\n  try { url = new URL(String(testCase.url ?? '')); } catch { throw new Error('Invalid URL for ' + caseId); }\n  if (url.protocol !== 'https:') throw new Error('Only HTTPS is allowed for ' + caseId);\n  if (!allowedHosts.includes(url.hostname.toLowerCase())) throw new Error('Host is not allowlisted for ' + caseId);\n\n  const requestHeaders = testCase.headers && typeof testCase.headers === 'object' && !Array.isArray(testCase.headers) ? testCase.headers : {};\n  for (const key of Object.keys(requestHeaders)) {\n    if (blockedHeaders.has(key.toLowerCase())) throw new Error('Secret-capable header is blocked for ' + caseId + ': ' + key);\n  }\n\n  const expectedStatus = Number(testCase.expected_status ?? 200);\n  if (!Number.isInteger(expectedStatus) || expectedStatus < 100 || expectedStatus > 599) throw new Error('Invalid expected_status for ' + caseId);\n\n  return {\n    json: {\n      suite_id: suiteId,\n      dry_run: dryRun,\n      requested_cases: cases.length,\n      case_index: index + 1,\n      case_id: caseId,\n      method,\n      url: url.toString(),\n      request_headers: requestHeaders,\n      request_body: testCase.body ?? {},\n      expected_status: expectedStatus,\n      expected_body_contains: testCase.expected_body_contains === undefined ? null : String(testCase.expected_body_contains)\n    },\n    pairedItem: { item: 0 }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        160
+      ],
+      "id": "b2020000-0000-4000-8000-000000000002",
+      "name": "Validate and Expand Cases"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b2020000-0000-4000-8000-000000000003",
+              "leftValue": "={{ $json.dry_run }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        640,
+        160
+      ],
+      "id": "b2020000-0000-4000-8000-000000000004",
+      "name": "Dry Run?"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(item => ({ json: { ...item.json, status: 'planned', passed: null, actual_status: null, response_excerpt: null } }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        40
+      ],
+      "id": "b2020000-0000-4000-8000-000000000005",
+      "name": "Mark Planned"
+    },
+    {
+      "parameters": {
+        "method": "={{ $json.method }}",
+        "url": "={{ $json.url }}",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={{ JSON.stringify($json.request_headers) }}",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json.request_body) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        280
+      ],
+      "id": "b2020000-0000-4000-8000-000000000006",
+      "name": "Execute Validation Request"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const response = $input.first()?.json ?? {};\nconst source = $('Validate and Expand Cases').item.json;\nconst statusCode = Number(response.statusCode ?? response.status ?? 0);\nconst body = response.body ?? response.data ?? response;\nconst serialized = typeof body === 'string' ? body : JSON.stringify(body);\nconst statusMatches = statusCode === source.expected_status;\nconst contentMatches = source.expected_body_contains === null || serialized.includes(source.expected_body_contains);\nreturn [{ json: {\n  suite_id: source.suite_id,\n  dry_run: false,\n  requested_cases: source.requested_cases,\n  case_index: source.case_index,\n  case_id: source.case_id,\n  expected_status: source.expected_status,\n  actual_status: statusCode,\n  expected_body_contains: source.expected_body_contains,\n  passed: statusMatches && contentMatches,\n  status: statusMatches && contentMatches ? 'passed' : 'failed',\n  response_excerpt: serialized.slice(0, 300).replace(/(bearer\\s+)[^\\s\\\"']+/gi, '$1[REDACTED]').replace(/(token|secret|password|authorization|cookie)([\\\"']?\\s*[:=]\\s*[\\\"']?)[^\\\"',}\\s]+/gi, '$1$2[REDACTED]')\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        280
+      ],
+      "id": "b2020000-0000-4000-8000-000000000007",
+      "name": "Evaluate Case"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(item => item.json);\nconst first = rows[0] ?? {};\nconst planned = rows.filter(r => r.status === 'planned').length;\nconst passed = rows.filter(r => r.status === 'passed').length;\nconst failed = rows.filter(r => r.status === 'failed').length;\nreturn [{ json: {\n  ok: failed === 0,\n  status: first.dry_run ? 'dry_run_completed' : (failed ? 'validation_failed' : 'validation_passed'),\n  suite_id: first.suite_id,\n  dry_run: Boolean(first.dry_run),\n  requested_cases: rows.length,\n  planned_cases: planned,\n  passed_cases: passed,\n  failed_cases: failed,\n  results: rows.map(r => ({ case_id: r.case_id, status: r.status, expected_status: r.expected_status, actual_status: r.actual_status, response_excerpt: r.response_excerpt ?? null })),\n  next_action: first.dry_run ? 'Review the plan, then run the same suite with dry_run=false.' : (failed ? 'Review failed cases; do not close M2.' : 'Capture sanitized execution evidence and reconcile the M2 Gate register.')\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1376,
+        160
+      ],
+      "id": "b2020000-0000-4000-8000-000000000008",
+      "name": "Return Sanitized Summary"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Validate and Expand Cases",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate and Expand Cases": {
+      "main": [
+        [
+          {
+            "node": "Dry Run?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dry Run?": {
+      "main": [
+        [
+          {
+            "node": "Mark Planned",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Execute Validation Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Planned": {
+      "main": [
+        [
+          {
+            "node": "Return Sanitized Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Validation Request": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Case",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate Case": {
+      "main": [
+        [
+          {
+            "node": "Return Sanitized Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "b2020000-0000-4000-8000-000000000100",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "nodeGroups": [],
+  "tags": []
+}
