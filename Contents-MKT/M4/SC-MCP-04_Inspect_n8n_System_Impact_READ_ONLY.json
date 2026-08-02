@@ -1,0 +1,112 @@
+{
+  "name": "SuperChoiceAI — SC-MCP-04 Inspect n8n System Impact (READ ONLY)",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "base_url"
+            },
+            {
+              "name": "project_tag"
+            },
+            {
+              "name": "include_inactive",
+              "type": "boolean",
+              "defaultValue": true
+            }
+          ]
+        }
+      },
+      "id": "sc-mcp-04-trigger",
+      "name": "Read-Only Inspection Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -620,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.base_url.replace(/\\/$/, '') + '/api/v1/workflows?limit=250' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": false,
+        "options": {
+          "response": {
+            "response": {
+              "neverError": false,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "sc-mcp-04-list",
+      "name": "GET Workflow Inventory",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -360,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CONFIGURE_AFTER_IMPORT",
+          "name": "N8N_API_WORKFLOWS_READONLY"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const root = $input.first().json;\nconst workflows = Array.isArray(root.data) ? root.data : (Array.isArray(root) ? root : []);\nconst input = $('Read-Only Inspection Input').first().json || {};\nconst includeInactive = input.include_inactive !== false;\nconst projectTag = String(input.project_tag || '').trim().toLowerCase();\n\nconst safeCredentialRefs = (credentials) => {\n  if (!credentials || typeof credentials !== 'object') return [];\n  return Object.entries(credentials).map(([type, ref]) => ({\n    type,\n    reference_name: ref && typeof ref === 'object' && typeof ref.name === 'string' ? ref.name : null\n  }));\n};\n\nconst category = (type) => {\n  const t = String(type || '').toLowerCase();\n  if (t.includes('trigger') || t.includes('webhook')) return 'trigger';\n  if (t.includes('executeworkflow')) return 'sub_workflow';\n  if (/openai|anthropic|gemini|ollama|langchain/.test(t)) return 'ai_provider';\n  if (/slack|line|telegram|gmail|email|outlook/.test(t)) return 'channel';\n  if (/postgres|supabase|mysql|redis|googleSheets|drive|s3|r2/i.test(type || '')) return 'storage';\n  if (t.includes('httprequest')) return 'external_api';\n  return 'processing';\n};\n\nconst inventory = [];\nfor (const wf of workflows) {\n  if (!wf || typeof wf !== 'object') continue;\n  if (!includeInactive && !wf.active) continue;\n  const tags = Array.isArray(wf.tags) ? wf.tags.map(t => String(t.name || t).toLowerCase()) : [];\n  if (projectTag && !tags.some(t => t.includes(projectTag))) continue;\n\n  const nodes = Array.isArray(wf.nodes) ? wf.nodes : [];\n  const safeNodes = nodes.map(n => ({\n    name: String(n.name || ''),\n    type: String(n.type || ''),\n    type_version: n.typeVersion ?? null,\n    disabled: n.disabled === true,\n    category: category(n.type),\n    credential_references: safeCredentialRefs(n.credentials),\n    has_webhook: Boolean(n.webhookId || String(n.type || '').toLowerCase().includes('webhook'))\n  }));\n\n  const edges = [];\n  const connections = wf.connections && typeof wf.connections === 'object' ? wf.connections : {};\n  for (const [from, outputs] of Object.entries(connections)) {\n    if (!outputs || typeof outputs !== 'object') continue;\n    for (const groups of Object.values(outputs)) {\n      if (!Array.isArray(groups)) continue;\n      groups.forEach((group, outputIndex) => {\n        if (!Array.isArray(group)) return;\n        group.forEach(edge => edges.push({\n          from,\n          to: String(edge.node || ''),\n          output_index: outputIndex,\n          input_type: String(edge.type || 'main')\n        }));\n      });\n    }\n  }\n\n  inventory.push({\n    workflow_id: String(wf.id || ''),\n    workflow_name: String(wf.name || ''),\n    active: wf.active === true,\n    archived: wf.isArchived === true,\n    tags: tags,\n    node_count: safeNodes.length,\n    nodes: safeNodes,\n    connections: edges\n  });\n}\n\nconst names = new Map();\nfor (const wf of inventory) {\n  const key = wf.workflow_name.toLowerCase();\n  if (!names.has(key)) names.set(key, []);\n  names.get(key).push(wf.workflow_id);\n}\nconst duplicateWorkflowNames = [...names.entries()]\n  .filter(([, ids]) => ids.length > 1)\n  .map(([name, ids]) => ({ name, workflow_ids: ids }));\n\nreturn [{\n  json: {\n    ok: true,\n    mode: 'READ_ONLY',\n    generated_at: new Date().toISOString(),\n    workflow_count: inventory.length,\n    inventory,\n    dependency_edges: inventory.flatMap(w => w.connections.map(e => ({ workflow_id: w.workflow_id, ...e }))),\n    credential_reference_policy: 'name_and_type_only_no_values',\n    risks: { duplicate_workflow_names: duplicateWorkflowNames },\n    prohibited_data_confirmed_absent: [\n      'credential_values','api_keys','tokens','node_parameters','webhook_paths','execution_payloads','customer_data'\n    ]\n  }\n}];"
+      },
+      "id": "sc-mcp-04-sanitize",
+      "name": "Sanitize and Map Dependencies",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -100,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Read-Only Inspection Input": {
+      "main": [
+        [
+          {
+            "node": "GET Workflow Inventory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET Workflow Inventory": {
+      "main": [
+        [
+          {
+            "node": "Sanitize and Map Dependencies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false
+  },
+  "active": false,
+  "versionId": "00000000-0000-4000-8000-000000000004",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

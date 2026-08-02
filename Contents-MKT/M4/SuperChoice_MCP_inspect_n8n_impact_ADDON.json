@@ -1,0 +1,66 @@
+{
+  "name": "SuperChoice MCP - inspect_n8n_impact ADD-ON",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "superchoice-mcp-impact"
+      },
+      "id": "impact-mcp-trigger",
+      "name": "SuperChoice Impact MCP",
+      "type": "@n8n/n8n-nodes-langchain.mcpTrigger",
+      "typeVersion": 1,
+      "position": [
+        -240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "name": "inspect_n8n_impact",
+        "description": "Read-only n8n workflow inventory and dependency inspection. Returns sanitized workflow/node/connection/status metadata and credential reference names/types only. Never returns credential values, node parameters, webhook paths, execution payloads, or customer data.",
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_SC_MCP_04_WORKFLOW_ID",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "base_url": "={{ $fromAI('base_url') }}",
+            "project_tag": "={{ $fromAI('project_tag') }}",
+            "include_inactive": "={{ $fromAI('include_inactive', '', 'boolean') }}"
+          }
+        }
+      },
+      "id": "impact-tool-workflow",
+      "name": "inspect_n8n_impact",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "inspect_n8n_impact": {
+      "ai_tool": [
+        [
+          {
+            "node": "SuperChoice Impact MCP",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none"
+  },
+  "active": false,
+  "versionId": "00000000-0000-4000-8000-000000000005",
+  "tags": []
+}
