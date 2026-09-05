@@ -1,0 +1,404 @@
+{
+  "name": "CMT-SOC-09 LinkedIn Publisher",
+  "nodes": [
+    {
+      "id": "2a92112f-6742-4137-8342-f6fbc63855b8",
+      "name": "Orchestrator Input",
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "position": [
+        0,
+        192
+      ],
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "070e3044-220e-43fb-8a91-8f57ecaf07c1",
+      "name": "Y/N + Mode Validation",
+      "parameters": {
+        "jsCode": "const j = $json || {};\nconst channelRaw = String(j.channel || j.platform || '').toLowerCase();\nconst isLinkedIn = channelRaw === 'linkedin';\nconst mode = j.mode || 'READY_MEDIA';\nconst validMode = ['READY_MEDIA','TREND_TO_CONTENT'].includes(mode);\nconst approved = j.approved === true;\nconst dry_run = j.dry_run !== false;\nconst text = String(j.linkedin_text || j.caption || j.title || j.text || '').trim();\nconst visibility = j.visibility || 'PUBLIC';\nreturn [{ json: { ...j, platform: 'linkedin', channel_matches: isLinkedIn, mode, valid_mode: validMode, approved, dry_run, post_text: text, visibility, gate_pass: isLinkedIn && validMode && approved && !dry_run && text.length > 0 } }];"
+      },
+      "position": [
+        224,
+        192
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "f021d9bf-7dd3-43da-94b4-3b14bd890fcb",
+      "name": "Dry-run / Approval Gate",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "approved",
+              "leftValue": "={{ $json.approved }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            },
+            {
+              "id": "not-dry-run",
+              "leftValue": "={{ $json.dry_run }}",
+              "operator": {
+                "operation": "false",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": false
+            },
+            {
+              "id": "channel-linkedin",
+              "leftValue": "={{ $json.channel_matches }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            },
+            {
+              "id": "has-text",
+              "leftValue": "={{ $json.post_text.length > 0 }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        }
+      },
+      "position": [
+        448,
+        192
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "id": "5e8f94cd-b443-4eec-a63d-6c984b075303",
+      "name": "Prepare LinkedIn Publish",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "li-text",
+              "name": "text",
+              "type": "string",
+              "value": "={{ $json.post_text }}"
+            },
+            {
+              "id": "li-vis",
+              "name": "visibility",
+              "type": "string",
+              "value": "={{ $json.visibility }}"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "mode": "manual",
+        "options": {}
+      },
+      "position": [
+        672,
+        96
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5
+    },
+    {
+      "credentials": {
+        "linkedInOAuth2Api": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "f41ff39b-89b3-4870-bdf2-e7ea779e2625",
+      "name": "Post to LinkedIn",
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "additionalFields": {
+          "visibility": "={{ $json.visibility }}"
+        },
+        "operation": "create",
+        "person": "QkFCUIwGGi",
+        "postAs": "person",
+        "resource": "post",
+        "shareMediaCategory": "NONE",
+        "text": "={{ $json.text }}"
+      },
+      "position": [
+        896,
+        96
+      ],
+      "type": "n8n-nodes-base.linkedIn",
+      "typeVersion": 1
+    },
+    {
+      "id": "22434aa0-50ee-44a6-81a5-4d693d1fe8fd",
+      "name": "Success Output",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "status",
+              "name": "status",
+              "type": "string",
+              "value": "success"
+            },
+            {
+              "id": "published",
+              "name": "published",
+              "type": "boolean",
+              "value": true
+            },
+            {
+              "id": "platform",
+              "name": "platform",
+              "type": "string",
+              "value": "linkedin"
+            },
+            {
+              "id": "post_id",
+              "name": "post_id",
+              "type": "string",
+              "value": "={{ $json.id || $json.urn }}"
+            },
+            {
+              "id": "text",
+              "name": "text",
+              "type": "string",
+              "value": "={{ $('Prepare LinkedIn Publish').item.json.text }}"
+            },
+            {
+              "id": "visibility",
+              "name": "visibility",
+              "type": "string",
+              "value": "={{ $('Prepare LinkedIn Publish').item.json.visibility }}"
+            },
+            {
+              "id": "response",
+              "name": "response",
+              "type": "object",
+              "value": "={{ $json }}"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "mode": "manual",
+        "options": {}
+      },
+      "position": [
+        1120,
+        0
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5
+    },
+    {
+      "id": "7eb187fc-95c7-406e-a398-5d2adb01d6cf",
+      "name": "Error Output",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "status",
+              "name": "status",
+              "type": "string",
+              "value": "error"
+            },
+            {
+              "id": "published",
+              "name": "published",
+              "type": "boolean",
+              "value": false
+            },
+            {
+              "id": "platform",
+              "name": "platform",
+              "type": "string",
+              "value": "linkedin"
+            },
+            {
+              "id": "error_message",
+              "name": "error_message",
+              "type": "string",
+              "value": "LinkedIn post request failed"
+            },
+            {
+              "id": "error",
+              "name": "error",
+              "type": "object",
+              "value": "={{ $json }}"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "mode": "manual",
+        "options": {}
+      },
+      "position": [
+        1120,
+        192
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5
+    },
+    {
+      "id": "476e33ed-92f5-441a-b9dc-16c0b18bb7c7",
+      "name": "Skipped Output",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "status",
+              "name": "status",
+              "type": "string",
+              "value": "skipped"
+            },
+            {
+              "id": "published",
+              "name": "published",
+              "type": "boolean",
+              "value": false
+            },
+            {
+              "id": "platform",
+              "name": "platform",
+              "type": "string",
+              "value": "linkedin"
+            },
+            {
+              "id": "reason",
+              "name": "reason",
+              "type": "string",
+              "value": "={{ $json.approved !== true ? 'not approved' : ($json.dry_run === true ? 'dry_run enabled' : (!$json.channel_matches ? 'platform is not linkedin' : 'missing post text')) }}"
+            },
+            {
+              "id": "message",
+              "name": "message",
+              "type": "string",
+              "value": "Post skipped by safety gate; LinkedIn was not called."
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "mode": "manual",
+        "options": {}
+      },
+      "position": [
+        672,
+        288
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5
+    }
+  ],
+  "connections": {
+    "Dry-run / Approval Gate": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Prepare LinkedIn Publish",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Skipped Output",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Orchestrator Input": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Y/N + Mode Validation",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Post to LinkedIn": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Success Output",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Error Output",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Prepare LinkedIn Publish": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Post to LinkedIn",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Y/N + Mode Validation": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Dry-run / Approval Gate",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "nodeGroups": [],
+  "id": "erUt41gBKrSrPcje",
+  "versionId": "1894c54f-5229-4fd5-83b4-7dbfc10a2038",
+  "createdAt": "2026-08-02T17:31:29.586Z",
+  "updatedAt": "2026-08-07T18:10:30.226Z",
+  "parentFolderId": "BgEM2QOTFsbe02On",
+  "_backup": {
+    "sourceProjectId": "fTE250SCnzLLnqUC",
+    "sourceProjectName": "SuperChoiceAI",
+    "sourceProjectType": "team",
+    "sourceFolder": "Contents-MKT",
+    "credentialValuesIncluded": false,
+    "credentialsRequireManualRebind": true
+  }
+}

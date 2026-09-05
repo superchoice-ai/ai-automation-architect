@@ -1,0 +1,26 @@
+{
+  "name": "CMT-WEB-01 WordPress Publisher",
+  "nodes": [],
+  "connections": {},
+  "active": false,
+  "settings": {
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "nodeGroups": [],
+  "id": "mplJQQGsW6rzj3Xx",
+  "versionId": "18578e04-848f-46c5-8045-ba9cf3c4ef6c",
+  "createdAt": "2026-08-02T17:24:27.086Z",
+  "updatedAt": "2026-08-07T18:10:30.226Z",
+  "parentFolderId": "BgEM2QOTFsbe02On",
+  "_backup": {
+    "sourceProjectId": "fTE250SCnzLLnqUC",
+    "sourceProjectName": "SuperChoiceAI",
+    "sourceProjectType": "team",
+    "sourceFolder": "Contents-MKT",
+    "credentialValuesIncluded": false,
+    "credentialsRequireManualRebind": true
+  }
+}

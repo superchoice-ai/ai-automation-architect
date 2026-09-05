@@ -1,0 +1,110 @@
+{
+  "name": "CMT-SOC-05 TikTok Publisher",
+  "nodes": [
+    {
+      "disabled": true,
+      "id": "4859b88c-e29d-447c-ae33-f45d7c279d40",
+      "name": "When clicking ‘Execute workflow’",
+      "parameters": {},
+      "position": [
+        0,
+        0
+      ],
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1
+    },
+    {
+      "credentials": {
+        "oAuth2Api": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "936326d9-ad66-4323-8ad5-44e970d94c1c",
+      "name": "HTTP Request",
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json; charset=UTF-8"
+            }
+          ]
+        },
+        "jsonBody": "={\n  \"post_info\": {\n    \"title\": \"={{ $json.caption || $json.title || '' }}\",\n    \"privacy_level\": \"={{ $json.privacy_level || 'SELF_ONLY' }}\",\n    \"disable_duet\": \"={{ $json.disable_duet ?? false }}\",\n    \"disable_comment\": \"={{ $json.disable_comment ?? false }}\",\n    \"disable_stitch\": \"={{ $json.disable_stitch ?? false }}\",\n    \"video_cover_timestamp_ms\": \"={{ $json.video_cover_timestamp_ms || 1000 }}\"\n  },\n  \"source_info\": {\n    \"source\": \"PULL_FROM_URL\",\n    \"video_url\": \"={{ $json.video_url={{ {\n  post_info: {\n    title: $json.caption || $json.title || '',\n    privacy_level: $json.privacy_level || 'SELF_ONLY',\n    disable_duet: $json.disable_duet ?? false,\n    disable_comment: $json.disable_comment ?? false,\n    disable_stitch: $json.disable_stitch ?? false,\n    video_cover_timestamp_ms: $json.video_cover_timestamp_ms || 1000\n  },\n  source_info: {\n    source: 'PULL_FROM_URL',\n    video_url: $json.video_url\n  }\n} }} }}\"\n  }\n}",
+        "method": "POST",
+        "options": {},
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "url": "https://open.tiktokapis.com/v2/post/publish/video/init/"
+      },
+      "position": [
+        224,
+        0
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5
+    },
+    {
+      "id": "3cc3b5d7-4f76-4b01-9847-3145ffd5284e",
+      "name": "When Executed by Another Workflow",
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "position": [
+        448,
+        0
+      ],
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "HTTP Request",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "HTTP Request",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "nodeGroups": [],
+  "id": "URuiZFY3MVoOtvaR",
+  "versionId": "73b2bd48-5e7a-4d0e-89f7-42441cbc4d19",
+  "createdAt": "2026-08-02T17:31:02.505Z",
+  "updatedAt": "2026-08-07T18:10:30.226Z",
+  "parentFolderId": "BgEM2QOTFsbe02On",
+  "_backup": {
+    "sourceProjectId": "fTE250SCnzLLnqUC",
+    "sourceProjectName": "SuperChoiceAI",
+    "sourceProjectType": "team",
+    "sourceFolder": "Contents-MKT",
+    "credentialValuesIncluded": false,
+    "credentialsRequireManualRebind": true
+  }
+}

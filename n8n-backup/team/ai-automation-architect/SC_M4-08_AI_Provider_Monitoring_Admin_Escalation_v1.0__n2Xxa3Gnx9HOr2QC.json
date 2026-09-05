@@ -1,0 +1,198 @@
+{
+  "name": "SC M4-08 AI Provider Monitoring & Admin Escalation v1.0",
+  "nodes": [
+    {
+      "id": "2535856e-bdfe-4a16-8d45-c79c6e743973",
+      "name": "Receive Execution Event",
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "position": [
+        0,
+        0
+      ],
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "04d0338e-f320-452c-8d83-5cc2452c1ae8",
+      "name": "Normalize Monitoring Event",
+      "parameters": {
+        "jsCode": "const input = $json;\nconst quotaPct = Number(input.quota_used_pct ?? input.usage_percent ?? input.quota_percent ?? 0);\nconst errorType = String(input.error_type ?? input.error_code ?? '').toLowerCase();\nconst runtimeFailure = ['quota_exceeded','rate_limit','rate_limited','timeout','provider_unavailable','billing_error'].includes(errorType) || input.provider_health === 'unhealthy';\nlet severity = 'INFO';\nlet action = 'NONE';\nif (runtimeFailure || quotaPct >= 100) { severity='CRITICAL'; action='SKIP_PROVIDER_AND_ESCALATE'; }\nelse if (quotaPct >= 90) { severity='CRITICAL'; action='PREPARE_FALLBACK'; }\nelse if (quotaPct >= 80) { severity='HIGH'; action='ALERT_ADMIN'; }\nelse if (quotaPct >= 70) { severity='WARNING'; action='ALERT_ADMIN'; }\nconst dryRun = input.dry_run !== undefined ? Boolean(input.dry_run) : String($vars.SC_DRY_RUN)==='true';\nreturn [{json:{event_id:$execution.id,environment:$vars.SC_ENVIRONMENT,project:$vars.SC_PROJECT_SLUG,timezone:$vars.SC_TIMEZONE,provider:input.provider ?? 'unknown',quota_used_pct:quotaPct,error_type:errorType||null,runtime_failure:runtimeFailure,severity,action,should_notify:severity!=='INFO',notification_mode:dryRun?'EVIDENCE_ONLY':'ADMIN_ALERT',dry_run:dryRun,schedule_interval_minutes:30,thresholds:[70,80,90,100],provider_order:['openai','claude','future_low_cost','gemini_last_resort','admin_escalation'],payload:input,observed_at:new Date().toISOString()}}];"
+      },
+      "position": [
+        240,
+        0
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "c6393de0-ce49-4088-ba16-01858187966b",
+      "name": "Schedule Trigger",
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "position": [
+        448,
+        96
+      ],
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3
+    },
+    {
+      "id": "a4663499-54a5-4e55-9016-04233200efab",
+      "name": "Switch",
+      "parameters": {
+        "mode": "expression",
+        "numberOutputs": 2,
+        "output": "={{ $json.should_notify && !$json.dry_run ? 1 : 0 }}"
+      },
+      "position": [
+        656,
+        0
+      ],
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4
+    },
+    {
+      "id": "d9beb3f4-e711-43b1-8c3b-e9e403d3ab84",
+      "name": "Prepare Admin Alert & Evidence",
+      "parameters": {
+        "jsCode": "const i = $json;\nreturn [{ json: {\n  ...i,\n  alert_channel: 'LINE_ADMIN',\n  alert_recipient_policy: $vars.SC_LINE_ADMIN_ROUTING || 'ADMIN_ONLY',\n  alert_title: `AI Provider ${i.severity}: ${i.provider}`,\n  alert_message: `Provider ${i.provider} quota ${i.quota_used_pct}% action ${i.action}`,\n  escalation_status: i.dry_run ? 'EVIDENCE_ONLY' : 'READY_TO_SEND',\n  evidence: {\n    workflow: 'SC M4-08 AI Provider Monitoring & Admin Escalation v1.0',\n    event_id: i.event_id,\n    observed_at: i.observed_at,\n    provider: i.provider,\n    severity: i.severity,\n    action: i.action\n  }\n} }];"
+      },
+      "position": [
+        864,
+        96
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "4ac8e522-5904-48eb-9d8c-820173e1f727",
+      "name": "Record Monitoring Evidence",
+      "parameters": {
+        "jsCode": "const i = $json;\nreturn [{ json: {\n  ...i,\n  evidence_status: i.dry_run ? 'RECORDED_DRY_RUN' : 'RECORDED_NO_ALERT',\n  evidence: {\n    workflow: 'SC M4-08 AI Provider Monitoring & Admin Escalation v1.0',\n    event_id: i.event_id,\n    observed_at: i.observed_at,\n    provider: i.provider,\n    quota_used_pct: i.quota_used_pct,\n    severity: i.severity,\n    action: i.action,\n    notification_mode: i.notification_mode\n  }\n} }];"
+      },
+      "position": [
+        864,
+        -96
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "8bacbac5-f2d4-4bd6-bb60-d001409ede63",
+      "name": "Send Admin Alert Email",
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "message": "=={{ '<h2>' + $json.alert_title + '</h2><p>' + $json.alert_message + '</p><p><b>Action:</b> ' + $json.action + '<br><b>Observed:</b> ' + $json.observed_at + '</p>' }}",
+        "options": {},
+        "sendTo": "=={{ $vars.SC_ALERT_EMAIL }}",
+        "subject": "=={{ $json.alert_title }}"
+      },
+      "position": [
+        1024,
+        96
+      ],
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "webhookId": "bbce86aa-45a7-4e35-b295-82d9d97912af"
+    }
+  ],
+  "connections": {
+    "Normalize Monitoring Event": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Switch",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Prepare Admin Alert & Evidence": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Send Admin Alert Email",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Receive Execution Event": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Normalize Monitoring Event",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Normalize Monitoring Event",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Record Monitoring Evidence",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Prepare Admin Alert & Evidence",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "nodeGroups": [],
+  "id": "n2Xxa3Gnx9HOr2QC",
+  "versionId": "45b46a71-87cc-469d-a132-7d6d673ddfd2",
+  "createdAt": "2026-07-30T03:42:27.464Z",
+  "updatedAt": "2026-08-12T17:35:54.054Z",
+  "parentFolderId": "yGWue6djkmZiBm31",
+  "_backup": {
+    "sourceProjectId": "fTE250SCnzLLnqUC",
+    "sourceProjectName": "SuperChoiceAI",
+    "sourceProjectType": "team",
+    "sourceFolder": "ai-automation-architect",
+    "credentialValuesIncluded": false,
+    "credentialsRequireManualRebind": true
+  }
+}

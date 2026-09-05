@@ -1,0 +1,427 @@
+{
+  "name": "CMT-SOC-02 Facebook Page Publisher",
+  "nodes": [
+    {
+      "id": "90d2dad2-e4bf-4626-ba6a-3d9399de4f7f",
+      "name": "When Executed by Another Workflow",
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "position": [
+        0,
+        288
+      ],
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2
+    },
+    {
+      "id": "6b268072-d623-44a6-a2b3-5aedd3c6a4b2",
+      "name": "Safety Gate",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "approved",
+              "leftValue": "={{ $json.approved }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            },
+            {
+              "id": "not-dry-run",
+              "leftValue": "={{ $json.dry_run }}",
+              "operator": {
+                "operation": "false",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": false
+            },
+            {
+              "id": "platform-is-facebook",
+              "leftValue": "={{ ['facebook','facebook_page','facebook_group'].includes($json.channel || $json.platform) }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        }
+      },
+      "position": [
+        224,
+        288
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3
+    },
+    {
+      "id": "aa6da087-c9e9-4a6e-a03d-843e9143ac86",
+      "name": "Group Target Ready",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "group-ready",
+              "leftValue": "={{ ($json.channel || $json.platform) !== 'facebook_group' || (($json.group_id !== undefined) && ($json.group_id !== null) && (String($json.group_id).length > 0)) }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        }
+      },
+      "position": [
+        448,
+        192
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3
+    },
+    {
+      "credentials": {
+        "facebookGraphApiOAuth2Api": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "65f50a1b-7a04-40e0-a3aa-ba521ad7dfeb",
+      "name": "HTTP Request",
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "message",
+              "value": "={{ $json.caption || $json.description || $json.text || '' }}"
+            }
+          ]
+        },
+        "method": "POST",
+        "nodeCredentialType": "facebookGraphApiOAuth2Api",
+        "options": {},
+        "sendBody": true,
+        "url": "={{ ($json.channel || $json.platform) === 'facebook_group' ? 'https://graph.facebook.com/v23.0/' + $json.group_id + '/feed' : 'https://graph.facebook.com/v23.0/me/feed' }}"
+      },
+      "position": [
+        672,
+        96
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5
+    },
+    {
+      "id": "de26e704-db71-47bf-825c-5f918325307e",
+      "name": "Success Output",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "status",
+              "name": "status",
+              "type": "string",
+              "value": "success"
+            },
+            {
+              "id": "published",
+              "name": "published",
+              "type": "boolean",
+              "value": true
+            },
+            {
+              "id": "platform",
+              "name": "platform",
+              "type": "string",
+              "value": "={{ ($('When Executed by Another Workflow').item.json.channel || $('When Executed by Another Workflow').item.json.platform) === 'facebook_group' ? 'facebook_group' : 'facebook_page' }}"
+            },
+            {
+              "id": "post_id",
+              "name": "post_id",
+              "type": "string",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "id": "caption",
+              "name": "caption",
+              "type": "string",
+              "value": "={{ $('When Executed by Another Workflow').item.json.caption || $('When Executed by Another Workflow').item.json.description || $('When Executed by Another Workflow').item.json.text || '' }}"
+            },
+            {
+              "id": "response",
+              "name": "response",
+              "type": "object",
+              "value": "={{ $json }}"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "mode": "manual",
+        "options": {}
+      },
+      "position": [
+        896,
+        0
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5
+    },
+    {
+      "id": "856338b1-f9b3-467e-92b4-319d25b5ed4b",
+      "name": "Error Output",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "status",
+              "name": "status",
+              "type": "string",
+              "value": "error"
+            },
+            {
+              "id": "published",
+              "name": "published",
+              "type": "boolean",
+              "value": false
+            },
+            {
+              "id": "platform",
+              "name": "platform",
+              "type": "string",
+              "value": "={{ ($('When Executed by Another Workflow').item.json.channel || $('When Executed by Another Workflow').item.json.platform) === 'facebook_group' ? 'facebook_group' : 'facebook_page' }}"
+            },
+            {
+              "id": "error_message",
+              "name": "error_message",
+              "type": "string",
+              "value": "Facebook publish request failed"
+            },
+            {
+              "id": "error",
+              "name": "error",
+              "type": "object",
+              "value": "={{ $json }}"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "mode": "manual",
+        "options": {}
+      },
+      "position": [
+        896,
+        192
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5
+    },
+    {
+      "id": "32a6e433-0f0f-4fa0-85ad-7277a4a0f096",
+      "name": "Missing Group ID Output",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "status",
+              "name": "status",
+              "type": "string",
+              "value": "skipped"
+            },
+            {
+              "id": "published",
+              "name": "published",
+              "type": "boolean",
+              "value": false
+            },
+            {
+              "id": "platform",
+              "name": "platform",
+              "type": "string",
+              "value": "facebook_group"
+            },
+            {
+              "id": "reason",
+              "name": "reason",
+              "type": "string",
+              "value": "facebook_group requires group_id"
+            },
+            {
+              "id": "message",
+              "name": "message",
+              "type": "string",
+              "value": "Post skipped: facebook_group channel requires a group_id; Facebook was not called."
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "mode": "manual",
+        "options": {}
+      },
+      "position": [
+        672,
+        288
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5
+    },
+    {
+      "id": "117c59ab-f4d2-4242-a9b8-8b06c9bcbb30",
+      "name": "Skipped Output",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "status",
+              "name": "status",
+              "type": "string",
+              "value": "skipped"
+            },
+            {
+              "id": "published",
+              "name": "published",
+              "type": "boolean",
+              "value": false
+            },
+            {
+              "id": "platform",
+              "name": "platform",
+              "type": "string",
+              "value": "={{ $json.channel || $json.platform || '' }}"
+            },
+            {
+              "id": "reason",
+              "name": "reason",
+              "type": "string",
+              "value": "={{ $json.approved !== true ? 'not approved' : ($json.dry_run === true ? 'dry_run enabled' : 'platform is not facebook/facebook_page/facebook_group') }}"
+            },
+            {
+              "id": "message",
+              "name": "message",
+              "type": "string",
+              "value": "Post skipped by safety gate; Facebook was not called."
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "mode": "manual",
+        "options": {}
+      },
+      "position": [
+        448,
+        384
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5
+    }
+  ],
+  "connections": {
+    "Group Target Ready": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "HTTP Request",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Missing Group ID Output",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Success Output",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Error Output",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Safety Gate": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Group Target Ready",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Skipped Output",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Safety Gate",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "nodeGroups": [],
+  "id": "EP5wKvWEPqKIIlfK",
+  "versionId": "dd9589ca-96c9-4049-874e-b60ac7144f65",
+  "createdAt": "2026-08-02T17:30:42.509Z",
+  "updatedAt": "2026-08-07T18:10:30.226Z",
+  "parentFolderId": "BgEM2QOTFsbe02On",
+  "_backup": {
+    "sourceProjectId": "fTE250SCnzLLnqUC",
+    "sourceProjectName": "SuperChoiceAI",
+    "sourceProjectType": "team",
+    "sourceFolder": "Contents-MKT",
+    "credentialValuesIncluded": false,
+    "credentialsRequireManualRebind": true
+  }
+}

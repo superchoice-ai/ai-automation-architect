@@ -1,0 +1,590 @@
+{
+  "name": "CMT-SOC-06 LINE OA Publisher",
+  "nodes": [
+    {
+      "id": "65c15ca8-cd80-4940-8df7-903b68c5e682",
+      "name": "Orchestrator Input",
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "position": [
+        0,
+        400
+      ],
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "0fdf35c0-4e5d-47c9-8be5-383007e0f681",
+      "name": "Y/N + Mode Validation",
+      "parameters": {
+        "jsCode": "const x = $json || {};\nconst channelRaw = String(x.channel || x.platform || '').toLowerCase();\nconst isLine = channelRaw === 'line_oa' || channelRaw === 'line';\nconst mode = String(x.mode || 'READY_MEDIA');\nconst validMode = ['READY_MEDIA','TREND_TO_CONTENT'].includes(mode);\nconst approved = x.approved === true;\nconst dry_run = x.dry_run !== false;\nconst text = String(x.line_text || x.caption || x.title || x.text || '').trim();\nconst reply_token = x.reply_token || '';\nconst recipient = x.to || x.user_id || '';\nlet send_type = 'broadcast';\nif (reply_token) send_type = 'reply';\nelse if (recipient) send_type = 'push';\nreturn [{ json: { ...x, platform: 'line_oa', enabled: isLine, mode, valid_mode: validMode, approved, dry_run, channel_matches: isLine, message_text: text, reply_token, recipient, send_type, gate_pass: isLine && validMode && approved && !dry_run && text.length > 0 } }];"
+      },
+      "position": [
+        224,
+        400
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "624d0869-850c-4dc9-816e-a5a8699a8858",
+      "name": "Dry-run & Approval Gate",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "approved",
+              "leftValue": "={{ $json.approved }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            },
+            {
+              "id": "not-dry-run",
+              "leftValue": "={{ $json.dry_run }}",
+              "operator": {
+                "operation": "false",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": false
+            },
+            {
+              "id": "channel-line",
+              "leftValue": "={{ $json.channel_matches }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            },
+            {
+              "id": "has-text",
+              "leftValue": "={{ $json.message_text.length > 0 }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        }
+      },
+      "position": [
+        448,
+        400
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3
+    },
+    {
+      "id": "ef8e8a9a-16ca-4291-82a9-264441b72802",
+      "name": "Route Send Type",
+      "parameters": {
+        "mode": "rules",
+        "options": {},
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.send_type }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "reply"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                }
+              },
+              "outputKey": "reply",
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.send_type }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "push"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                }
+              },
+              "outputKey": "push",
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.send_type }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "broadcast"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                }
+              },
+              "outputKey": "broadcast",
+              "renameOutput": true
+            }
+          ]
+        }
+      },
+      "position": [
+        672,
+        272
+      ],
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4
+    },
+    {
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "c82aac1a-4a62-4ce3-86ef-8c384d28b24c",
+      "name": "LINE Reply",
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "body": "={{ JSON.stringify({ replyToken: $json.reply_token, messages: [{ type: \"text\", text: $json.message_text }] }) }}",
+        "contentType": "raw",
+        "genericAuthType": "httpBearerAuth",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "method": "POST",
+        "options": {},
+        "rawContentType": "application/json",
+        "sendBody": true,
+        "sendHeaders": true,
+        "url": "https://api.line.me/v2/bot/message/reply"
+      },
+      "position": [
+        896,
+        0
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2
+    },
+    {
+      "id": "be0e1957-720e-4e2b-b609-e5ba2f83f35a",
+      "name": "Success Output",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "status",
+              "name": "status",
+              "type": "string",
+              "value": "success"
+            },
+            {
+              "id": "published",
+              "name": "published",
+              "type": "boolean",
+              "value": true
+            },
+            {
+              "id": "platform",
+              "name": "platform",
+              "type": "string",
+              "value": "line_oa"
+            },
+            {
+              "id": "send_type",
+              "name": "send_type",
+              "type": "string",
+              "value": "={{ $('Y/N + Mode Validation').item.json.send_type }}"
+            },
+            {
+              "id": "recipient",
+              "name": "recipient",
+              "type": "string",
+              "value": "={{ $('Y/N + Mode Validation').item.json.recipient || '' }}"
+            },
+            {
+              "id": "message_count",
+              "name": "message_count",
+              "type": "number",
+              "value": 1
+            },
+            {
+              "id": "response",
+              "name": "response",
+              "type": "object",
+              "value": "={{ $json }}"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "mode": "manual",
+        "options": {}
+      },
+      "position": [
+        1120,
+        96
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5
+    },
+    {
+      "id": "f1cc4017-ca5f-4c56-a058-635d3bc1ca2a",
+      "name": "Error Output",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "status",
+              "name": "status",
+              "type": "string",
+              "value": "error"
+            },
+            {
+              "id": "published",
+              "name": "published",
+              "type": "boolean",
+              "value": false
+            },
+            {
+              "id": "platform",
+              "name": "platform",
+              "type": "string",
+              "value": "line_oa"
+            },
+            {
+              "id": "error_message",
+              "name": "error_message",
+              "type": "string",
+              "value": "LINE OA send request failed"
+            },
+            {
+              "id": "error",
+              "name": "error",
+              "type": "object",
+              "value": "={{ $json }}"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "mode": "manual",
+        "options": {}
+      },
+      "position": [
+        1120,
+        288
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5
+    },
+    {
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "1c66935f-100d-4412-9e76-9f486fa01bbb",
+      "name": "LINE Push",
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "body": "={{ JSON.stringify({ to: $json.recipient, messages: [{ type: \"text\", text: $json.message_text }] }) }}",
+        "contentType": "raw",
+        "genericAuthType": "httpBearerAuth",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "method": "POST",
+        "options": {},
+        "rawContentType": "application/json",
+        "sendBody": true,
+        "sendHeaders": true,
+        "url": "https://api.line.me/v2/bot/message/push"
+      },
+      "position": [
+        896,
+        240
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2
+    },
+    {
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "ffde2af4-2ee5-44ec-a2f0-c7c04cd330f4",
+      "name": "LINE Broadcast",
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "body": "={{ JSON.stringify({ messages: [{ type: \"text\", text: $json.message_text }] }) }}",
+        "contentType": "raw",
+        "genericAuthType": "httpBearerAuth",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "method": "POST",
+        "options": {},
+        "rawContentType": "application/json",
+        "sendBody": true,
+        "sendHeaders": true,
+        "url": "https://api.line.me/v2/bot/message/broadcast"
+      },
+      "position": [
+        896,
+        480
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2
+    },
+    {
+      "id": "7a24b53b-0b3a-43ac-9abd-3055c66a3dca",
+      "name": "Skipped Output",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "status",
+              "name": "status",
+              "type": "string",
+              "value": "skipped"
+            },
+            {
+              "id": "published",
+              "name": "published",
+              "type": "boolean",
+              "value": false
+            },
+            {
+              "id": "platform",
+              "name": "platform",
+              "type": "string",
+              "value": "line_oa"
+            },
+            {
+              "id": "reason",
+              "name": "reason",
+              "type": "string",
+              "value": "={{ $json.approved !== true ? 'not approved' : ($json.dry_run === true ? 'dry_run enabled' : (!$json.channel_matches ? 'platform is not line' : 'missing message text')) }}"
+            },
+            {
+              "id": "message",
+              "name": "message",
+              "type": "string",
+              "value": "Send skipped by safety gate; LINE OA was not called."
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "mode": "manual",
+        "options": {}
+      },
+      "position": [
+        672,
+        496
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5
+    }
+  ],
+  "connections": {
+    "Dry-run & Approval Gate": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Route Send Type",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Skipped Output",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "LINE Broadcast": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Success Output",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Error Output",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "LINE Push": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Success Output",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Error Output",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "LINE Reply": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Success Output",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Error Output",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Orchestrator Input": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Y/N + Mode Validation",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Route Send Type": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "LINE Reply",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "LINE Push",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "LINE Broadcast",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Y/N + Mode Validation": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Dry-run & Approval Gate",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "nodeGroups": [],
+  "id": "acqCJRuh23LwgI0J",
+  "versionId": "f686cace-c365-4d05-b0d2-c97f91f81cb3",
+  "createdAt": "2026-08-02T17:31:09.322Z",
+  "updatedAt": "2026-08-07T18:10:30.226Z",
+  "parentFolderId": "BgEM2QOTFsbe02On",
+  "_backup": {
+    "sourceProjectId": "fTE250SCnzLLnqUC",
+    "sourceProjectName": "SuperChoiceAI",
+    "sourceProjectType": "team",
+    "sourceFolder": "Contents-MKT",
+    "credentialValuesIncluded": false,
+    "credentialsRequireManualRebind": true
+  }
+}

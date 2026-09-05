@@ -1,0 +1,26 @@
+{
+  "name": "CMT-SOC-07 Pinterest Publisher",
+  "nodes": [],
+  "connections": {},
+  "active": false,
+  "settings": {
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "nodeGroups": [],
+  "id": "v57MIomgxB1RMhJ3",
+  "versionId": "764f9d74-658b-4648-a528-b9e567aa2172",
+  "createdAt": "2026-08-02T17:31:16.011Z",
+  "updatedAt": "2026-08-07T18:10:30.226Z",
+  "parentFolderId": "BgEM2QOTFsbe02On",
+  "_backup": {
+    "sourceProjectId": "fTE250SCnzLLnqUC",
+    "sourceProjectName": "SuperChoiceAI",
+    "sourceProjectType": "team",
+    "sourceFolder": "Contents-MKT",
+    "credentialValuesIncluded": false,
+    "credentialsRequireManualRebind": true
+  }
+}

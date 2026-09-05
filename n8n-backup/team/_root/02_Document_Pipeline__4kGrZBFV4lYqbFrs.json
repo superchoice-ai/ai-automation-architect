@@ -1,0 +1,1471 @@
+{
+  "name": "02_Document_Pipeline",
+  "nodes": [
+    {
+      "id": "b6793155-0b16-4a58-8175-498f992d0b67",
+      "name": "Sticky Note Tail",
+      "parameters": {
+        "content": "02_Document_Pipeline — Drive -> extract -> chunk -> (NEW) dedup + embed + upsert\n\nAPPENDED TAIL (mirrors 03_YouTube_Pipeline):\nChunk -> Config -> Has Text? -> Hash Content -> Hash UID\n  -> Check Existing Hashes -> Filter New Chunks -> Embed Chunk (Gemini 1536)\n  -> Build Upsert Row -> Upsert Chunk (Supabase knowledge_chunks)\n\nDOCUMENT vs YOUTUBE mapping:\n- video_id = document_id (same value in both fields)\n- source_url = https://drive.google.com/file/d/<document_id>/view\n- start_time = null, timestamp_url = '' (documents have no timestamps)\n- No status sheet: just dedup + embed + upsert.\n\nSHARED TABLE: knowledge_chunks (same as 03). chunk_uid UNIQUE is the upsert\nconflict target. Embedding dim MUST be 1536 to match the column.",
+        "height": 340,
+        "width": 460
+      },
+      "position": [
+        896,
+        2272
+      ],
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1
+    },
+    {
+      "id": "3ac6b146-231b-4ad5-a906-f9e04e5de583",
+      "name": "Start",
+      "parameters": {},
+      "position": [
+        -1344,
+        1152
+      ],
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1
+    },
+    {
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "33a99c0d-738a-40a9-8c82-854bd847adc7",
+      "name": "Google Drive File",
+      "parameters": {
+        "filter": {
+          "folderId": {
+            "__rl": true,
+            "cachedResultName": "02_Documents",
+            "cachedResultUrl": "https://drive.google.com/drive/folders/1LqHkBqzQfoxjG8zciyi8QwrPl98I92CD",
+            "mode": "list",
+            "value": "1LqHkBqzQfoxjG8zciyi8QwrPl98I92CD"
+          },
+          "whatToSearch": "files"
+        },
+        "options": {
+          "fields": [
+            "id",
+            "name",
+            "mimeType"
+          ]
+        },
+        "queryString": "=mimeType != 'application/vnd.google-apps.folder'",
+        "resource": "fileFolder",
+        "searchMethod": "query"
+      },
+      "position": [
+        -1120,
+        1152
+      ],
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3
+    },
+    {
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "c0320242-85b8-4021-a89d-9c488e67d87c",
+      "name": "Download File",
+      "parameters": {
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
+        "operation": "download",
+        "options": {
+          "binaryPropertyName": "data",
+          "fileName": "={{ $json.name }}",
+          "googleFileConversion": {
+            "conversion": {
+              "docsToFormat": "text/plain",
+              "sheetsToFormat": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+              "slidesToFormat": "application/pdf"
+            }
+          }
+        }
+      },
+      "position": [
+        -896,
+        1152
+      ],
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3
+    },
+    {
+      "id": "272bb9eb-1250-47b9-a984-ec3456931538",
+      "name": "Route by File Type",
+      "parameters": {
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "Unsupported"
+        },
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "a73a87ca-7772-4a31-84f2-5dc41f48e5ec",
+                    "leftValue": "={{ $json.mimeType }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "application/pdf"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                }
+              },
+              "outputKey": "pdf",
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "6727a32d-4a84-4702-ae94-5f417cfaf744",
+                    "leftValue": "={{ $json.mimeType }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "text/plain"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                }
+              },
+              "outputKey": "txt",
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "87277282-962e-414c-ab95-1101e72c75f8",
+                    "leftValue": "={{ $json.mimeType }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "text/csv"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                }
+              },
+              "outputKey": "csv",
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "2bfce880-1479-4357-a775-ccd1db2f2b54",
+                    "leftValue": "={{ $json.mimeType }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "text/html"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                }
+              },
+              "outputKey": "html",
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "e4a69e57-0377-4363-997f-9abf14a32121",
+                    "leftValue": "={{ $json.mimeType }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "application/rtf"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                }
+              },
+              "outputKey": "rtf",
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "5433a7c0-bf42-47ea-9653-ec7216b3c3f9",
+                    "leftValue": "={{ $json.mimeType }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                }
+              },
+              "outputKey": "xlsx",
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "27b171e7-293b-4f19-8ef8-4ee3e4f91dfa",
+                    "leftValue": "={{ $json.mimeType }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "application/vnd.ms-excel"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                }
+              },
+              "outputKey": "xls",
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "e8b91bb3-03fc-40c6-bcc6-30cf8b8f94f1",
+                    "leftValue": "={{ $json.mimeType }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "text/xml"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                }
+              },
+              "outputKey": "xml",
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "0678b229-2a62-48b0-bfbe-5e7769991ce4",
+                    "leftValue": "={{ $json.mimeType }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "application/json"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                }
+              },
+              "outputKey": "json",
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "c1a11111-0000-4000-9000-000000000001",
+                    "leftValue": "={{ $json.mimeType }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "application/vnd.google-apps.document"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                }
+              },
+              "outputKey": "gdoc",
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "c1a11111-0000-4000-9000-000000000002",
+                    "leftValue": "={{ $json.mimeType }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "application/vnd.google-apps.spreadsheet"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                }
+              },
+              "outputKey": "gsheet",
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "c1a11111-0000-4000-9000-000000000003",
+                    "leftValue": "={{ $json.mimeType }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "application/vnd.google-apps.presentation"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                }
+              },
+              "outputKey": "gslides",
+              "renameOutput": true
+            }
+          ]
+        }
+      },
+      "position": [
+        -672,
+        992
+      ],
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4
+    },
+    {
+      "id": "6444f4b6-71b5-4b98-9231-54e2618f37b8",
+      "name": "Extract PDF",
+      "parameters": {
+        "operation": "pdf",
+        "options": {
+          "joinPages": true,
+          "keepSource": "both"
+        }
+      },
+      "position": [
+        -448,
+        80
+      ],
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1
+    },
+    {
+      "disabled": true,
+      "id": "c959ffdb-4b77-470b-8351-fc4c17e093a5",
+      "name": "PDF Needs OCR?",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "ocr-empty",
+              "leftValue": "={{ ($json.text || \"\").replace(/\\s/g, \"\").length }}",
+              "operator": {
+                "operation": "lt",
+                "type": "number"
+              },
+              "rightValue": 20
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {},
+        "parameters": {
+          "conditions": {
+            "conditions": {
+              "0": {
+                "rightValue": "={{ (function(){ var cfg=($('Load Config').first()||{}).json||{}; var n=Number(cfg.ocr_min_text_length); return (cfg.ocr_min_text_length===null||cfg.ocr_min_text_length===undefined||cfg.ocr_min_text_length===''||!isFinite(n))?20:n; })() }}"
+              }
+            }
+          }
+        }
+      },
+      "position": [
+        -224,
+        80
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "credentials": {
+        "googlePalmApi": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "disabled": true,
+      "id": "78951814-08bc-4418-b6de-32231ed0ae68",
+      "name": "Gemini OCR",
+      "parameters": {
+        "inputType": "binary",
+        "modelId": {
+          "__rl": true,
+          "cachedResultName": "gemini-2.5-flash",
+          "mode": "list",
+          "value": "models/gemini-2.5-flash"
+        },
+        "options": {
+          "maxOutputTokens": 8192
+        },
+        "resource": "document",
+        "text": "Extract ALL text from this document exactly as written, preserving reading order and line breaks. Return only the raw extracted text with no commentary, headings, or markdown."
+      },
+      "position": [
+        0,
+        0
+      ],
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2
+    },
+    {
+      "disabled": true,
+      "id": "ad5da980-f0e9-4cfc-ad34-4b3c0d0cfa71",
+      "name": "OCR To Text",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ocr-text-1",
+              "name": "text",
+              "type": "string",
+              "value": "={{ $json.content || $json.text || \"\" }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "position": [
+        224,
+        0
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4
+    },
+    {
+      "id": "8bf54582-72da-4366-9b4e-32b0820c9ea8",
+      "name": "Load Metadata1",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3a48e358-6a86-40e7-a41c-4310767ad6a3",
+              "name": "created_at",
+              "type": "string",
+              "value": "={{$now}}"
+            },
+            {
+              "id": "f78dceda-1282-4a9a-8441-b1f3f3a448a1",
+              "name": "pipeline_version",
+              "type": "string",
+              "value": "1.0"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "position": [
+        448,
+        1056
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4
+    },
+    {
+      "id": "cd683902-911d-452c-ba5d-49561e5e8bf0",
+      "name": "Extract TXT",
+      "parameters": {
+        "destinationKey": "text",
+        "operation": "text",
+        "options": {}
+      },
+      "position": [
+        224,
+        288
+      ],
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "64a446e5-9015-47b2-9efd-e2e86e3b5d1e",
+      "name": "Extract CSV",
+      "parameters": {
+        "options": {}
+      },
+      "position": [
+        224,
+        480
+      ],
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "44293495-8c2e-4c0d-918d-121d50f192d3",
+      "name": "Extract HTML",
+      "parameters": {
+        "operation": "html",
+        "options": {}
+      },
+      "position": [
+        224,
+        672
+      ],
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "7b360d9f-0cc3-47e9-b12d-a85f843d74db",
+      "name": "Extract RTF",
+      "parameters": {
+        "operation": "rtf",
+        "options": {}
+      },
+      "position": [
+        224,
+        864
+      ],
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "2cce2f66-ca50-4b3c-afac-b753482a2a94",
+      "name": "Extract XLSX",
+      "parameters": {
+        "operation": "xlsx",
+        "options": {}
+      },
+      "position": [
+        224,
+        1056
+      ],
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "b4b7b32a-6aad-42f6-bb70-8842678a969c",
+      "name": "Extract XLS",
+      "parameters": {
+        "operation": "xls",
+        "options": {}
+      },
+      "position": [
+        224,
+        1248
+      ],
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "e071ad88-455f-4bde-90d0-519b5b875e9f",
+      "name": "Extract XML",
+      "parameters": {
+        "destinationKey": "text",
+        "operation": "xml",
+        "options": {}
+      },
+      "position": [
+        224,
+        1440
+      ],
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "ea7986b3-0b92-4404-bace-d142a6a228a6",
+      "name": "Extract JSON",
+      "parameters": {
+        "destinationKey": "text",
+        "operation": "fromJson",
+        "options": {}
+      },
+      "position": [
+        224,
+        1632
+      ],
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "e19b51de-9b8c-4463-867f-64e72a8b1006",
+      "name": "Extract GDoc",
+      "parameters": {
+        "destinationKey": "text",
+        "operation": "text",
+        "options": {}
+      },
+      "position": [
+        224,
+        1824
+      ],
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "6f3c216b-1259-4fab-9d87-12510b57be37",
+      "name": "Extract GSheet",
+      "parameters": {
+        "operation": "xlsx",
+        "options": {}
+      },
+      "position": [
+        224,
+        2016
+      ],
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "42f8324d-e896-470e-9e2c-4c32a8ca3df1",
+      "name": "Extract GSlides",
+      "parameters": {
+        "operation": "pdf",
+        "options": {
+          "joinPages": true,
+          "keepSource": "both"
+        }
+      },
+      "position": [
+        224,
+        2208
+      ],
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "bb58d261-7068-436b-9dee-0a1cc859a064",
+      "name": "Get Plain Text",
+      "parameters": {
+        "jsCode": "// Normalize every Extract branch into one plain-text document per source file.\n// Metadata (id / title / source_type) is pulled from the \"Download File\" node via\n// paired-item matching, so it is present for EVERY branch even when the Extract\n// node stripped the original fields (text / xml / json / spreadsheet operations).\n\nconst MIME_MAP = {\n  'application/pdf': 'pdf',\n  'text/plain': 'txt',\n  'text/csv': 'csv',\n  'text/html': 'html',\n  'application/rtf': 'rtf',\n  'text/rtf': 'rtf',\n  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',\n  'application/vnd.ms-excel': 'xls',\n  'application/xml': 'xml',\n  'text/xml': 'xml',\n  'application/json': 'json',\n  'application/vnd.google-apps.document': 'gdoc',\n  'application/vnd.google-apps.spreadsheet': 'gsheet',\n  'application/vnd.google-apps.presentation': 'gslides',\n};\n\n// Pipeline/metadata keys that are NOT document content.\nconst META = ['id', 'name', 'mimeType', 'created_at', 'pipeline_version', 'document_id', 'title', 'source_type', 'status', 'char_count', 'numpages'];\nconst NL = String.fromCharCode(10);\n\nfunction sourceType(mime, name) {\n  if (MIME_MAP[mime]) return MIME_MAP[mime];\n  if (name && name.includes('.')) return name.split('.').pop().toLowerCase();\n  return 'unknown';\n}\n\n// Turn one extracted item into a text fragment.\nfunction renderText(j) {\n  if (typeof j.text === 'string') return j.text;                 // PDF / TXT / RTF / GDoc / OCR\n  if (j.text !== undefined && j.text !== null) {                 // XML / JSON (object under \"text\")\n    return JSON.stringify(j.text, null, 2);\n  }\n  // Spreadsheet / tabular row -> readable \"Column: value\" lines so each chunk\n  // stays self-describing even if a chunk boundary splits the document.\n  const lines = [];\n  for (const k of Object.keys(j)) {\n    if (META.includes(k)) continue;\n    let v = j[k];\n    if (v === null || v === undefined) v = '';\n    else if (typeof v === 'object') v = JSON.stringify(v);\n    lines.push(k + ': ' + v);\n  }\n  return lines.join(NL);\n}\n\nconst items = $input.all();\nconst downloads = $('Download File').all();\n\n// Group incoming items back to their source file (spreadsheets fan out into many\n// rows -> many items that all trace back to the same Download File item).\nconst groups = new Map();\nfor (let i = 0; i < items.length; i++) {\n  const j = items[i].json || {};\n  let src = {};\n  try {\n    const m = $('Download File').itemMatching(i);\n    if (m && m.json) src = m.json;\n  } catch (e) { /* pairing unavailable */ }\n  if (!src.id && downloads.length === 1) src = downloads[0].json || {};\n  const key = src.id || j.id || j.document_id || ('doc_' + i);\n  if (!groups.has(key)) groups.set(key, { src: src, rows: [] });\n  groups.get(key).rows.push(j);\n}\n\nconst out = [];\nfor (const entry of groups) {\n  const g = entry[1];\n  const src = g.src || {};\n  const name = src.name || '';\n  const mime = src.mimeType || '';\n  const parts = [];\n  for (const r of g.rows) {\n    const frag = renderText(r);\n    if (frag && frag.length) parts.push(frag);\n  }\n  const text = parts.join(NL + NL);\n  const meta = g.rows[0] || {};\n  out.push({\n    json: {\n      document_id: src.id || '',\n      title: name,\n      source_type: sourceType(mime, name),\n      created_at: meta.created_at || null,\n      pipeline_version: meta.pipeline_version || null,\n      text: text,\n      char_count: text.length,\n      status: 'Extracted',\n    },\n  });\n}\nreturn out;"
+      },
+      "position": [
+        672,
+        1056
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "59a7e9d0-5776-415f-8298-66ebb258578c",
+      "name": "Save TXT",
+      "parameters": {
+        "operation": "toText",
+        "options": {
+          "fileName": "={{ $json.document_id || 'document' }}.txt"
+        },
+        "sourceProperty": "text"
+      },
+      "position": [
+        896,
+        1056
+      ],
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "e3fef4cf-9862-414a-97ce-43103d9a68cd",
+      "name": "Chunk",
+      "parameters": {
+        "jsCode": "// Split each document's plain text into overlapping chunks.\n// Read text from \"Get Plain Text\" (Save TXT emits binary, so reference the text source directly).\nconst CHUNK_SIZE = 1000;   // characters per chunk\nconst OVERLAP = 100;       // characters shared between consecutive chunks\nconst out = [];\nfor (const item of $('Get Plain Text').all()) {\n  const j = item.json || {};\n  const text = String(j.text || '');\n  if (!text) {\n    out.push({ json: { document_id: j.document_id, title: j.title, source_type: j.source_type, chunk_index: 0, chunk_count: 0, text: '' } });\n    continue;\n  }\n  const chunks = [];\n  let start = 0;\n  while (start < text.length) {\n    const end = Math.min(start + CHUNK_SIZE, text.length);\n    chunks.push(text.slice(start, end));\n    if (end >= text.length) break;\n    start = end - OVERLAP;\n    if (start < 0) start = 0;\n  }\n  for (let i = 0; i < chunks.length; i++) {\n    out.push({\n      json: {\n        document_id: j.document_id,\n        title: j.title,\n        source_type: j.source_type,\n        chunk_index: i,\n        chunk_count: chunks.length,\n        text: chunks[i],\n      },\n    });\n  }\n}\nreturn out;"
+      },
+      "position": [
+        1120,
+        1056
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "91b462b8-49a3-41e7-9cdc-33835fa1c42e",
+      "name": "Config",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cfg-supabase-url",
+              "name": "supabase_url",
+              "type": "string",
+              "value": "https://oyadomcsptmgudwuxwvq.supabase.co"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "position": [
+        1344,
+        1056
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4
+    },
+    {
+      "id": "e5f4a132-508b-4ee6-aea3-42df263fe62a",
+      "name": "Has Text?",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "text-not-empty",
+              "leftValue": "={{ $json.text }}",
+              "operator": {
+                "operation": "notEmpty",
+                "singleValue": true,
+                "type": "string"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        1568,
+        1056
+      ],
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3
+    },
+    {
+      "id": "444bedf4-1dfe-4f10-bebb-4ce3e7a22538",
+      "name": "Hash Content",
+      "parameters": {
+        "dataPropertyName": "content_hash",
+        "value": "={{ $json.text }}"
+      },
+      "position": [
+        1792,
+        1056
+      ],
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 2
+    },
+    {
+      "id": "d47fefc5-a864-4ca7-88dc-f4aa858646b0",
+      "name": "Hash UID",
+      "parameters": {
+        "dataPropertyName": "chunk_uid",
+        "value": "={{ $json.document_id }}|{{ $json.content_hash }}"
+      },
+      "position": [
+        2016,
+        1056
+      ],
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 2
+    },
+    {
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "executeOnce": true,
+      "id": "71b80f21-2aab-41f4-bb54-833a121e55dc",
+      "name": "Check Existing Hashes",
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        },
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "select",
+              "value": "chunk_uid"
+            },
+            {
+              "name": "chunk_uid",
+              "value": "=in.({{ $(\"Hash UID\").all().map(i => i.json.chunk_uid).join(\",\") }})"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "url": "={{ $(\"Config\").first().json.supabase_url }}/rest/v1/knowledge_chunks"
+      },
+      "position": [
+        2240,
+        1056
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4
+    },
+    {
+      "id": "4c5537f1-f4be-4fbc-8b47-79948b510582",
+      "name": "Filter New Chunks",
+      "parameters": {
+        "jsCode": "// Only embed chunks that changed / are new -> saves Gemini + re-index cost.\nconst existing = new Set();\nfor (const it of $('Check Existing Hashes').all()) {\n  const j = it.json || {};\n  if (j && j.chunk_uid) existing.add(j.chunk_uid);\n}\nconst out = [];\nfor (const it of $('Hash UID').all()) {\n  const j = it.json || {};\n  if (!j.chunk_uid) continue;\n  if (existing.has(j.chunk_uid)) continue;   // unchanged -> skip\n  out.push({ json: j });\n}\nreturn out;"
+      },
+      "position": [
+        2464,
+        1056
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "credentials": {
+        "googlePalmApi": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "a7e30fe4-d098-4daa-a144-54783e74c4cc",
+      "name": "Embed Chunk",
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "jsonBody": "={\"model\":\"models/gemini-embedding-001\",\"content\":{\"parts\":[{\"text\": {{ JSON.stringify($json.text) }} }]},\"outputDimensionality\":1536}",
+        "method": "POST",
+        "nodeCredentialType": "googlePalmApi",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent"
+      },
+      "position": [
+        2688,
+        1056
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4
+    },
+    {
+      "id": "6084405a-f704-4a17-8948-536121025529",
+      "name": "Build Upsert Row",
+      "parameters": {
+        "jsCode": "// Assemble each row with REAL top-level columns AND a metadata jsonb mirror\n// (identical shape to 03_YouTube_Pipeline so 04 retrieval treats both the same).\n// Document specifics: video_id = document_id, source_url = Google Drive file\n// link, no start_time/timestamp_url.\nconst items = $input.all();\nconst out = [];\nfor (let i = 0; i < items.length; i++) {\n  const emb = items[i].json || {};\n  let src = {};\n  try {\n    const m = $('Filter New Chunks').itemMatching(i);\n    if (m && m.json) src = m.json;\n  } catch (e) { /* pairing unavailable */ }\n\n  const values = (emb.embedding && Array.isArray(emb.embedding.values)) ? emb.embedding.values\n    : (Array.isArray(emb.values) ? emb.values : []);\n  const embeddingStr = '[' + values.join(',') + ']';   // pgvector text form\n\n  const docId = src.document_id || '';\n  const sourceUrl = docId ? ('https://drive.google.com/file/d/' + docId + '/view') : '';\n  const createdAt = src.created_at || new Date().toISOString();\n  const pipelineVersion = src.pipeline_version || '1.0';\n\n  const meta = {\n    document_id: docId,\n    title: src.title,\n    source_type: src.source_type,\n    source_url: sourceUrl,\n    chunk_index: src.chunk_index,\n    chunk_count: src.chunk_count,\n    created_at: createdAt,\n    pipeline_version: pipelineVersion,\n    video_id: docId,\n    start_time: null,\n    timestamp_url: '',\n    content_hash: src.content_hash,\n  };\n\n  out.push({ json: {\n    chunk_uid: src.chunk_uid,\n    document_id: docId,\n    title: src.title,\n    source_type: src.source_type,\n    source_url: sourceUrl,\n    chunk_index: src.chunk_index,\n    chunk_count: src.chunk_count,\n    content: src.text,\n    content_hash: src.content_hash,\n    created_at: createdAt,\n    pipeline_version: pipelineVersion,\n    video_id: docId,\n    start_time: null,\n    timestamp_url: '',\n    embedding: embeddingStr,\n    metadata: meta,\n  } });\n}\nreturn out;"
+      },
+      "position": [
+        2912,
+        1056
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "credentials": {
+        "supabaseApi": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "fe7644be-bd78-4d7c-82e5-f100ee9663be",
+      "name": "Upsert Chunk",
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=minimal"
+            }
+          ]
+        },
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "method": "POST",
+        "nodeCredentialType": "supabaseApi",
+        "options": {},
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "url": "={{ $(\"Config\").first().json.supabase_url }}/rest/v1/knowledge_chunks?on_conflict=chunk_uid"
+      },
+      "position": [
+        3136,
+        1056
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4
+    },
+    {
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "id": "fadcfbe7-ff7d-4c96-84a6-ee31468701c3",
+      "name": "Load Config",
+      "notes": "[Claude edit] 2026-07-26 - added so PDF Needs OCR? can read ocr_min_text_length from chatbot_config",
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "chatbot_config",
+          "cachedResultUrl": "/projects/fTE250SCnzLLnqUC/datatables/5nWp9I7fCE4Gmnfx",
+          "mode": "list",
+          "value": "5nWp9I7fCE4Gmnfx"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "config_key",
+              "keyValue": "default"
+            }
+          ]
+        },
+        "limit": 1,
+        "matchType": "allConditions",
+        "operation": "get"
+      },
+      "position": [
+        -1232,
+        1152
+      ],
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1
+    }
+  ],
+  "connections": {
+    "Build Upsert Row": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Upsert Chunk",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Check Existing Hashes": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Filter New Chunks",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Chunk": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Config",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Has Text?",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Download File": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Route by File Type",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Embed Chunk": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Build Upsert Row",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Extract CSV": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Load Metadata1",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Extract GDoc": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Load Metadata1",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Extract GSheet": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Load Metadata1",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Extract GSlides": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Load Metadata1",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Extract HTML": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Load Metadata1",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Extract JSON": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Load Metadata1",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Extract PDF": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "PDF Needs OCR?",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Extract RTF": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Load Metadata1",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Extract TXT": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Load Metadata1",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Extract XLS": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Load Metadata1",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Extract XLSX": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Load Metadata1",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Extract XML": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Load Metadata1",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Filter New Chunks": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Embed Chunk",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Gemini OCR": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "OCR To Text",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Get Plain Text": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Save TXT",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Google Drive File": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Download File",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Has Text?": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Hash Content",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Hash Content": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Hash UID",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Hash UID": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Check Existing Hashes",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Load Config": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Google Drive File",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Load Metadata1": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Get Plain Text",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "OCR To Text": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Load Metadata1",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "PDF Needs OCR?": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Gemini OCR",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Load Metadata1",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Route by File Type": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Extract PDF",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Extract TXT",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Extract CSV",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Extract HTML",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Extract RTF",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Extract XLSX",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Extract XLS",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Extract XML",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Extract JSON",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Extract GDoc",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Extract GSheet",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Extract GSlides",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Save TXT": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Chunk",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Start": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Load Config",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "v0hnP0nFMXxgbKlb",
+    "executionOrder": "v1",
+    "timeSavedMode": "fixed"
+  },
+  "tags": [],
+  "nodeGroups": [],
+  "id": "4kGrZBFV4lYqbFrs",
+  "versionId": "1ca88f0a-5085-4720-b768-0e7a815ab9c7",
+  "createdAt": "2026-07-19T07:46:52.027Z",
+  "updatedAt": "2026-07-26T10:36:28.342Z",
+  "parentFolderId": null,
+  "_backup": {
+    "sourceProjectId": "fTE250SCnzLLnqUC",
+    "sourceProjectName": "SuperChoiceAI",
+    "sourceProjectType": "team",
+    "sourceFolder": "_root",
+    "credentialValuesIncluded": false,
+    "credentialsRequireManualRebind": true
+  }
+}

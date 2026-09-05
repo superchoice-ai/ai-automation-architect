@@ -1,0 +1,152 @@
+{
+  "name": "06b_Backup_Error_Alert",
+  "nodes": [
+    {
+      "id": "5253e25b-e6ff-48bd-a4b5-cfb88abf5495",
+      "name": "Sticky 06b",
+      "parameters": {
+        "content": "06b_Backup_Error_Alert — LINE OA alert when a backup run fails\n\nOn Backup Error (Error Trigger) -> Build Alert -> Set Notify Target\n  -> LINE Push Alert (LINE Messaging API push)\n\nUses the LINE PUSH API (not reply) because an error has no replyToken.\nSet \"notify_to\" to the LINE userId (or groupId) that should receive alerts,\nand use the LINE Channel Access Token in the \"Bearer Auth account\" credential.\n\nAttach this as the Error Workflow of 06_Daily_Backup (settings.errorWorkflow)\nAFTER publishing this workflow.",
+        "height": 260,
+        "width": 560
+      },
+      "position": [
+        336,
+        64
+      ],
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1
+    },
+    {
+      "id": "af81a415-ddb0-4067-be32-6725bf9e4e9b",
+      "name": "On Backup Error",
+      "parameters": {},
+      "position": [
+        0,
+        0
+      ],
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1
+    },
+    {
+      "id": "634cd677-87b2-4835-a9f6-8c08a5419e11",
+      "name": "Build Alert",
+      "parameters": {
+        "jsCode": "// Build a concise LINE alert from the Error Trigger payload.\nconst j = $input.first().json || {};\nconst ex = j.execution || {};\nconst err = ex.error || {};\nconst wf = j.workflow || {};\nconst code = err.httpCode || err.code || err.name || err.errorCode || '';\nconst desc = err.description || err.message || (typeof err === 'string' ? err : '') || 'Unknown error';\nconst nodeName = (err.node && err.node.name) || ex.lastNodeExecuted || '';\nconst when = new Date().toISOString();\n\nlet text = '\\u26A0\\uFE0F Backup FAILED\\n';\ntext += 'Workflow: ' + (wf.name || '(unknown)') + '\\n';\nif (nodeName) text += 'Node: ' + nodeName + '\\n';\nif (code) text += 'Code: ' + String(code) + '\\n';\ntext += 'Error: ' + String(desc).slice(0, 400) + '\\n';\ntext += 'Exec: ' + String(ex.id || '') + '\\n';\ntext += 'Time: ' + when + '\\n';\ntext += '\\u2757 Old backups were NOT deleted (delete only runs after a verified-complete backup).';\n\nreturn [{ json: { alert_text: text.slice(0, 4900) } }];"
+      },
+      "position": [
+        224,
+        0
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "c8a2b7aa-88be-4e46-a963-5a53bcdd438a",
+      "name": "Set Notify Target",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "t",
+              "name": "notify_to",
+              "type": "string",
+              "value": "Ua17bc34464471b6351da01b4b387ee77"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "position": [
+        448,
+        0
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4
+    },
+    {
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "027989e3-2569-4f13-83ab-0cd21290f838",
+      "name": "LINE Push Alert",
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "jsonBody": "={ \"to\": {{ JSON.stringify($json.notify_to) }}, \"messages\": [ { \"type\": \"text\", \"text\": {{ JSON.stringify($json.alert_text) }} } ] }",
+        "method": "POST",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://api.line.me/v2/bot/message/push"
+      },
+      "position": [
+        672,
+        0
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4
+    }
+  ],
+  "connections": {
+    "Build Alert": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Set Notify Target",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "On Backup Error": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Build Alert",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Set Notify Target": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "LINE Push Alert",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionOrder": "v1",
+    "timeSavedMode": "fixed"
+  },
+  "tags": [],
+  "nodeGroups": [],
+  "id": "cQXq4qgAo5NRS8xH",
+  "versionId": "9d913304-98b7-47fb-9836-ef06111fe744",
+  "createdAt": "2026-07-19T07:48:57.116Z",
+  "updatedAt": "2026-07-26T06:24:23.124Z",
+  "parentFolderId": null,
+  "_backup": {
+    "sourceProjectId": "fTE250SCnzLLnqUC",
+    "sourceProjectName": "SuperChoiceAI",
+    "sourceProjectType": "team",
+    "sourceFolder": "_root",
+    "credentialValuesIncluded": false,
+    "credentialsRequireManualRebind": true
+  }
+}

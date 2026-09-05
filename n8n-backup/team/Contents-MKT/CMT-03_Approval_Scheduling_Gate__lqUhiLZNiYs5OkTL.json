@@ -1,0 +1,151 @@
+{
+  "name": "CMT-03 Approval & Scheduling Gate",
+  "nodes": [
+    {
+      "id": "63463300-6dd3-463c-8922-6f3574ca22f4",
+      "name": "Media Validated Input",
+      "parameters": {},
+      "position": [
+        -720,
+        112
+      ],
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "8781cc0d-3e05-4f26-b215-0cc39f5b9f68",
+      "name": "Evaluate Approval Schedule",
+      "parameters": {
+        "jsCode": "const x=$json||{}; const now=Date.now(); const when=x.schedule_at?Date.parse(x.schedule_at):now; const approved=x.approved===true; const dry=x.dry_run===true; return [{json:{...x,gate:{approved,dry_run:dry,schedule_valid:Number.isFinite(when),due:when<=now,scheduled_for:new Date(when).toISOString(),evaluated_at:new Date().toISOString()}}}];"
+      },
+      "position": [
+        -480,
+        112
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "d4ad3896-622d-4d6c-aab3-7432d5f64ef3",
+      "name": "Approved or Dry Run?",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{$json.gate.approved || $json.gate.dry_run}}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        -240,
+        112
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "id": "b6f0f3b5-15b7-4a09-9216-7036ab49dcc6",
+      "name": "Release Gate",
+      "parameters": {
+        "jsCode": "return $input.all().map(i=>({json:{...i.json,status:i.json.gate.dry_run?'DRY_RUN_APPROVED':'APPROVED',next:'CMT-04 Idempotency & Audit'}}));"
+      },
+      "position": [
+        0,
+        0
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "6adeb129-9de9-4d9b-9f2e-7de8351f94cc",
+      "name": "Hold Gate",
+      "parameters": {
+        "jsCode": "return $input.all().map(i=>({json:{content_id:i.json.content_id||null,status:'APPROVAL_PENDING',gate:i.json.gate,audit_safe:true}}));"
+      },
+      "position": [
+        0,
+        208
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    }
+  ],
+  "connections": {
+    "Approved or Dry Run?": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Release Gate",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Hold Gate",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Evaluate Approval Schedule": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Approved or Dry Run?",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Media Validated Input": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Evaluate Approval Schedule",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "nodeGroups": [],
+  "id": "lqUhiLZNiYs5OkTL",
+  "versionId": "b9e5b393-09e0-47fc-96eb-57310fbb3b03",
+  "createdAt": "2026-08-03T15:24:58.828Z",
+  "updatedAt": "2026-08-07T18:10:30.226Z",
+  "parentFolderId": "BgEM2QOTFsbe02On",
+  "_backup": {
+    "sourceProjectId": "fTE250SCnzLLnqUC",
+    "sourceProjectName": "SuperChoiceAI",
+    "sourceProjectType": "team",
+    "sourceFolder": "Contents-MKT",
+    "credentialValuesIncluded": false,
+    "credentialsRequireManualRebind": true
+  }
+}

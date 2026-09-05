@@ -1,0 +1,217 @@
+{
+  "name": "CMT-05 Retry & Admin Escalation",
+  "nodes": [
+    {
+      "id": "1a584922-97ac-40ca-b991-b92b52ef9fa8",
+      "name": "Publisher Result Input",
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "position": [
+        -720,
+        128
+      ],
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "f13b3433-55ad-4cd7-9723-8d56f5f2ecb8",
+      "name": "Classify Recovery",
+      "parameters": {
+        "jsCode": "const x=$json||{}; const attempt=Number(x.attempt||1); const max=Number(x.max_attempts||3); const ok=x.success===true||x.status==='PUBLISHED'||x.status==='DRY_RUN'; const retryable=!ok&&attempt<max&&x.retryable!==false; return [{json:{...x,recovery:{ok,attempt,max_attempts:max,retryable,next_attempt:retryable?attempt+1:null,escalate:!ok&&!retryable,evaluated_at:new Date().toISOString()}}}];"
+      },
+      "position": [
+        -480,
+        128
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "ca10838b-b8d4-40b1-9640-a75588432b7d",
+      "name": "Succeeded?",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{$json.recovery.ok}}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        -240,
+        128
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "id": "63772360-940b-4752-ba91-eeccb8cafdf1",
+      "name": "Close Success",
+      "parameters": {
+        "jsCode": "return $input.all().map(i=>({json:{content_id:i.json.content_id||null,channel:i.json.channel||null,status:'RECOVERY_NOT_REQUIRED',audit_safe:true}}));"
+      },
+      "position": [
+        0,
+        0
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "d609cdb2-0c34-47c0-b4a2-a50afd2fa95e",
+      "name": "Retryable?",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{$json.recovery.retryable}}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        0,
+        224
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "id": "164a4e7e-98ad-4eb4-a6b1-a4958d70e466",
+      "name": "Prepare Retry",
+      "parameters": {
+        "jsCode": "return $input.all().map(i=>({json:{...i.json,status:'RETRY_QUEUED',attempt:i.json.recovery.next_attempt,backoff_seconds:Math.min(900,30*Math.pow(2,i.json.recovery.attempt-1))}}));"
+      },
+      "position": [
+        240,
+        144
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "7695b7dc-5207-4b85-83b2-a7a059ccd28e",
+      "name": "Prepare Admin Escalation",
+      "parameters": {
+        "jsCode": "return $input.all().map(i=>({json:{content_id:i.json.content_id||null,channel:i.json.channel||null,status:'ADMIN_ESCALATION_REQUIRED',error_code:i.json.error_code||'PUBLISH_FAILED',attempt:i.json.recovery.attempt,audit_safe:true,secret_fields_removed:true}}));"
+      },
+      "position": [
+        240,
+        304
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    }
+  ],
+  "connections": {
+    "Classify Recovery": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Succeeded?",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Publisher Result Input": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Classify Recovery",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Retryable?": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Prepare Retry",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Prepare Admin Escalation",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Succeeded?": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Close Success",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Retryable?",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "nodeGroups": [],
+  "id": "3NlGX9h0lHg4MHPb",
+  "versionId": "fb9f7848-45cd-43b3-8634-af1c79890e3f",
+  "createdAt": "2026-08-03T15:25:54.539Z",
+  "updatedAt": "2026-08-08T16:23:16.993Z",
+  "parentFolderId": "BgEM2QOTFsbe02On",
+  "_backup": {
+    "sourceProjectId": "fTE250SCnzLLnqUC",
+    "sourceProjectName": "SuperChoiceAI",
+    "sourceProjectType": "team",
+    "sourceFolder": "Contents-MKT",
+    "credentialValuesIncluded": false,
+    "credentialsRequireManualRebind": true
+  }
+}

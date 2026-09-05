@@ -1,0 +1,1796 @@
+{
+  "name": "04_RAG_Chat",
+  "nodes": [
+    {
+      "id": "e0fe2045-c684-479b-a0ac-fcfe27d31ca4",
+      "name": "Sticky Note 04",
+      "parameters": {
+        "content": "04_RAG_Chat — RAG chat with confidence gate + user-choice fallback\n\nTRIGGERS: Chat Trigger + LINE Webhook -> Normalize Input -> Config -> Load Config -> Check Pending -> Has Pending?\n\nFAQ FAST-PATH: TH (FAQ cosine threshold) = 0.6. best_question/best_answer are always exposed by FAQ Match (even on a miss) so the error path can fall back to them.\n\nERROR HANDLING: risky nodes (Embed / RAG Agent / Internet Search / Notify Admin) route their error output to Build Error Reply. Build Error Reply FIRST tries a GRACEFUL FALLBACK: if this run has a FAQ best-match (sim >= 0.4), it serves that cached answer (source=faq_fallback_04) instead of a raw error — so a Gemini 429 no longer blanks the user. Otherwise it (1) logs 7 columns to the Logs sheet and (2) replies with a friendly error incl. error_code + error_description + execution_id. The big `output` message is NOT written to Logs (defineBelow mapping keeps the sheet clean).\n\nALL replies converge -> Is LINE? -> LINE Reply (5-msg split) / Chat Reply.",
+        "height": 400,
+        "width": 560
+      },
+      "position": [
+        -1520,
+        1616
+      ],
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1
+    },
+    {
+      "id": "6d9c4476-9f47-4f08-bb64-985e38c7cd57",
+      "name": "Chat Trigger",
+      "parameters": {
+        "options": {
+          "responseMode": "lastNode"
+        }
+      },
+      "position": [
+        -3712,
+        816
+      ],
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "webhookId": "22fcddfe-a8bc-41d7-a7d4-446f2aea560c"
+    },
+    {
+      "id": "24bc879f-b635-4c64-bd00-660d8f75fc15",
+      "name": "Normalize Input",
+      "parameters": {
+        "jsCode": "const j = $input.first().json || {};\nconst body = j.body || {};\n\n// --- LINE OA webhook shape ---\nif (Array.isArray(body.events)) {\n  const ev = body.events[0];\n  if (!ev || !ev.message || ev.message.type !== 'text' || !ev.message.text) {\n    return [];\n  }\n  const src = ev.source || {};\n  return [{ json: {\n    channel: 'line',\n    chatInput: String(ev.message.text),\n    session_id: src.userId || src.groupId || src.roomId || 'line-unknown',\n    reply_token: ev.replyToken || '',\n  } }];\n}\n\n// --- Chat Trigger shape ---\nreturn [{ json: {\n  channel: 'chat',\n  chatInput: String(j.chatInput || ''),\n  session_id: j.sessionId || 'chat-session',\n  reply_token: '',\n} }];"
+      },
+      "position": [
+        -3488,
+        912
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "4428d994-862c-466f-9949-8cafda3949c3",
+      "name": "Config",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cfg-supabase-url",
+              "name": "supabase_url",
+              "type": "string",
+              "value": "https://oyadomcsptmgudwuxwvq.supabase.co"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "position": [
+        -3264,
+        912
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4
+    },
+    {
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "id": "ba56bf1c-e584-4686-94e0-1bd448abb76e",
+      "name": "Load Config",
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "chatbot_config",
+          "cachedResultUrl": "/projects/fTE250SCnzLLnqUC/datatables/5nWp9I7fCE4Gmnfx",
+          "mode": "list",
+          "value": "5nWp9I7fCE4Gmnfx"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "config_key",
+              "keyValue": "default"
+            }
+          ]
+        },
+        "limit": 1,
+        "matchType": "allConditions",
+        "operation": "get"
+      },
+      "position": [
+        -3040,
+        912
+      ],
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1
+    },
+    {
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "id": "db004394-fc6b-42b3-a265-e6067df36bc4",
+      "name": "Check Pending",
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "pending_confirmations",
+          "cachedResultUrl": "/projects/fTE250SCnzLLnqUC/datatables/zYzdpn3mi2yYbCHS",
+          "mode": "list",
+          "value": "zYzdpn3mi2yYbCHS"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "session_id",
+              "keyValue": "={{ $('Normalize Input').first().json.session_id }}"
+            }
+          ]
+        },
+        "limit": 1,
+        "matchType": "allConditions",
+        "operation": "get"
+      },
+      "position": [
+        -2816,
+        912
+      ],
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "d280bf55-ac36-47f5-a84e-84d7dde4b69e",
+      "name": "Has Pending?",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "has-pending",
+              "leftValue": "={{ $('Check Pending').first().json.session_id }}",
+              "operator": {
+                "operation": "notEmpty",
+                "singleValue": true,
+                "type": "string"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        -2592,
+        912
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "id": "90b8b014-2e7f-4dd0-ae5d-1011918eede9",
+      "name": "Handle Answer",
+      "parameters": {
+        "jsCode": "const norm = $('Normalize Input').first().json || {};\nconst p = $('Check Pending').first().json || {};\nconst raw = String(norm.chatInput || '').trim();\nconst ans = raw.toLowerCase();\n\nconst offInt = [true, 'true', 1, '1'].includes(p.offered_internet);\nconst offNot = [true, 'true', 1, '1'].includes(p.offered_notify);\nconst question = p.question || '';\n\nlet action = 'decline';\nif (ans === 'n' || ans === 'no') {\n  action = 'decline';\n} else if (ans.indexOf('1') >= 0 && offInt) {\n  action = 'internet';\n} else if (ans.indexOf('2') >= 0 && offNot) {\n  action = 'notify';\n} else if (ans === 'y' || ans === 'yes') {\n  action = offInt ? 'internet' : (offNot ? 'notify' : 'decline');\n} else {\n  action = 'decline';\n}\n\nreturn [{ json: {\n  action: action,\n  question: question,\n  session_id: p.session_id || norm.session_id,\n  channel: norm.channel || p.channel || 'chat',\n  reply_token: norm.reply_token || '',\n} }];"
+      },
+      "position": [
+        -800,
+        96
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "a27483e2-958c-48b2-8124-803c8f0ca7c2",
+      "name": "Delete Pending",
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "pending_confirmations",
+          "cachedResultUrl": "/projects/fTE250SCnzLLnqUC/datatables/zYzdpn3mi2yYbCHS",
+          "mode": "list",
+          "value": "zYzdpn3mi2yYbCHS"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "session_id",
+              "keyValue": "={{ $('Handle Answer').first().json.session_id }}"
+            }
+          ]
+        },
+        "matchType": "allConditions",
+        "operation": "deleteRows",
+        "options": {}
+      },
+      "position": [
+        -576,
+        96
+      ],
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "69bc9f7c-16e5-4794-b70c-2eedf4452434",
+      "name": "Route Answer",
+      "parameters": {
+        "options": {},
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Handle Answer').first().json.action }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "internet"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              },
+              "outputKey": "internet",
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Handle Answer').first().json.action }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "notify"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              },
+              "outputKey": "notify",
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Handle Answer').first().json.action }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "decline"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              },
+              "outputKey": "decline",
+              "renameOutput": true
+            }
+          ]
+        }
+      },
+      "position": [
+        -576,
+        384
+      ],
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2
+    },
+    {
+      "credentials": {
+        "googlePalmApi": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "ed239cc4-f2ef-46b7-b36f-4acf0574b14c",
+      "name": "Internet Search",
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "jsonBody": "={ \"contents\": [ { \"parts\": [ { \"text\": {{ JSON.stringify(\"ผู้ใช้ถามว่า: \" + $('Handle Answer').first().json.question + \"\\n\\nโปรดค้นหาคำตอบจากอินเทอร์เน็ตแล้วตอบเป็นภาษาเดียวกับคำถาม กระชับ ไม่เกิน 1500 ตัวอักษร เหมาะกับการส่งผ่าน LINE\") }} } ] } ], \"tools\": [ { \"google_search\": {} } ] }",
+        "method": "POST",
+        "nodeCredentialType": "googlePalmApi",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+      },
+      "position": [
+        -288,
+        48
+      ],
+      "retryOnFail": true,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4
+    },
+    {
+      "id": "34a36afc-e215-4fed-8f78-5ea9a0402249",
+      "name": "Parse Internet",
+      "parameters": {
+        "jsCode": "const NL = String.fromCharCode(10);\nconst j = $input.first().json || {};\nlet text = '';\ntry {\n  const parts = (((j.candidates || [])[0] || {}).content || {}).parts || [];\n  text = parts.map(function (p) { return p.text || ''; }).join('');\n} catch (e) { text = ''; }\ntext = String(text || '').trim();\nif (!text) text = 'ขออภัย ไม่พบข้อมูลจากการค้นอินเทอร์เน็ต';\nreturn [{ json: { output: '🌐 ผลค้นจากอินเทอร์เน็ต:' + NL + text } }];"
+      },
+      "position": [
+        0,
+        0
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "c82113b0-6c4e-47bf-8ac7-27760c7ed26c",
+      "name": "Is LINE?",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "is-line",
+              "leftValue": "={{ $('Normalize Input').first().json.channel }}",
+              "operator": {
+                "operation": "equals",
+                "type": "string"
+              },
+              "rightValue": "line"
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        224,
+        544
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "id": "9133a0d1-dcb8-4a75-a54f-efbcb4d181f1",
+      "name": "Build Error Reply",
+      "parameters": {
+        "jsCode": "const NL = String.fromCharCode(10);\nconst norm = $('Normalize Input').first().json || {};\nconst cfg = (($('Load Config').first() || {}).json) || {};\n\n// The item arriving here is the errored node's error payload.\nconst j = $input.first().json || {};\nconst err = j.error || j || {};\n\n// Pull the most useful code + description we can from the n8n error shape.\nconst code = err.httpCode || err.code || err.name || err.errorCode ||\n  (err.context && err.context.httpCode) || 'ERROR';\nlet desc = err.description || err.message ||\n  (err.cause && (err.cause.message || err.cause.description)) ||\n  (typeof err === 'string' ? err : '') || 'Unknown error';\ndesc = String(desc).slice(0, 500);\n\n// [Claude edit] 2026-07-26 — quota/rate-limit detection uses the ERROR\n// DESCRIPTION TEXT, not httpCode/code/errorCode. Real production log rows\n// (Google Sheet, execution_ids 457-466, 2026-07-18) confirmed those fields\n// are NOT populated by the Gemini node here — they all fell through to the\n// literal string 'ERROR'. Only description text (e.g. \"The service is\n// receiving too many requests from you\") is reliable, so detection is\n// pattern-matched against desc/code text instead of a structured field.\n// Restore: n8n workflow version history on 04_RAG_Chat (IfWBPDcLz7adFXgg).\nfunction isQuotaOrRateLimit(text) {\n  const s = String(text || '').toLowerCase();\n  return /too many requests|quota|rate limit|resource_exhausted|429/.test(s);\n}\nconst quotaError = isQuotaOrRateLimit(desc) || isQuotaOrRateLimit(code);\n\nconst isThai = /[\\u0E00-\\u0E7F]/.test(String(norm.chatInput || '')) || norm.channel === 'line';\nconst execId = String($execution.id || '');\n\nfunction cfgBool(v, fallback) {\n  if (v === true || v === 'true' || v === 1 || v === '1') return true;\n  if (v === false || v === 'false' || v === 0 || v === '0') return false;\n  return fallback;\n}\n// [Claude edit] 2026-07-26 — both flags read from chatbot_config, defaulting\n// to the PRIOR always-on behavior if the config row hasn't set them yet.\nconst fallbackToFaqOnQuota = cfgBool(cfg.fallback_to_faq_on_quota_exceeded, true);\nconst notifyUserOnError = cfgBool(cfg.notify_user_on_error, true);\n\n// GRACEFUL FALLBACK: only attempted for QUOTA/RATE-LIMIT errors (matches the\n// real incident pattern) and only when the config flag allows it. Non-quota\n// errors always skip straight to the error message below.\nlet fmBest = '';\nlet fmSim = -1;\nif (quotaError && fallbackToFaqOnQuota) {\n  try {\n    const fm = ($('FAQ Match').first() || {}).json || {};\n    fmBest = String(fm.best_answer || '').trim();\n    fmSim = Number(fm.faq_sim);\n  } catch (e) { fmBest = ''; }\n}\nif (fmBest && isFinite(fmSim) && fmSim >= 0.4) {\n  return [{ json: {\n    output: fmBest,\n    timestamp: new Date().toISOString(),\n    workflow_name: $workflow.name || '04_RAG_Chat',\n    node_name: (err.node && err.node.name) || err.nodeName || 'RAG Agent',\n    error_code: String(code),\n    error_description: (desc + ' | served FAQ best-match fallback (sim=' + fmSim.toFixed(3) + ')').slice(0, 500),\n    execution_id: execId,\n    source: 'faq_fallback_04',\n  } }];\n}\n\n// Message shown to the asker so they don't keep waiting.\nvar shortThai = '\\u26a0\\ufe0f \\u02c9\\u02c9\\u02c9\\u02c9\\u02c9\\u02c9';\nvar out;\nif (!notifyUserOnError) {\n  out = isThai\n    ? ('\\u0e02\\u0e2d\\u0e2d\\u0e20\\u0e31\\u0e22\\u0e04\\u0e48\\u0e30 \\u0e23\\u0e30\\u0e1a\\u0e1a\\u0e21\\u0e35\\u0e1b\\u0e31\\u0e0d\\u0e2b\\u0e32\\u0e0a\\u0e31\\u0e48\\u0e27\\u0e04\\u0e23\\u0e32\\u0e27 \\u0e01\\u0e23\\u0e38\\u0e13\\u0e32\\u0e25\\u0e2d\\u0e07\\u0e43\\u0e2b\\u0e21\\u0e48\\u0e2d\\u0e35\\u0e01\\u0e04\\u0e23\\u0e31\\u0e49\\u0e07\\u0e43\\u0e19\\u0e20\\u0e32\\u0e22\\u0e2b\\u0e25\\u0e31\\u0e07 \\ud83d\\ude4f')\n    : 'Sorry, the system hit a temporary problem. Please try again later. \\ud83d\\ude4f';\n} else if (isThai) {\n  out = '\\u0e02\\u0e2d\\u0e2d\\u0e20\\u0e31\\u0e22\\u0e04\\u0e48\\u0e30 \\u0e23\\u0e30\\u0e1a\\u0e1a\\u0e21\\u0e35\\u0e1b\\u0e31\\u0e0d\\u0e2b\\u0e32\\u0e0a\\u0e31\\u0e48\\u0e27\\u0e04\\u0e23\\u0e32\\u0e27 \\u0e17\\u0e35\\u0e21\\u0e07\\u0e32\\u0e19\\u0e44\\u0e14\\u0e49\\u0e23\\u0e31\\u0e1a\\u0e41\\u0e08\\u0e49\\u0e07\\u0e41\\u0e25\\u0e49\\u0e27' + NL +\n        '\\u0e01\\u0e23\\u0e38\\u0e13\\u0e32\\u0e25\\u0e2d\\u0e07\\u0e43\\u0e2b\\u0e21\\u0e48\\u0e2d\\u0e35\\u0e01\\u0e04\\u0e23\\u0e31\\u0e49\\u0e07\\u0e43\\u0e19\\u0e20\\u0e32\\u0e22\\u0e2b\\u0e25\\u0e31\\u0e07' + NL + NL +\n        '\\u0e23\\u0e32\\u0e22\\u0e25\\u0e30\\u0e40\\u0e2d\\u0e35\\u0e22\\u0e14\\u0e2a\\u0e33\\u0e2b\\u0e23\\u0e31\\u0e1a\\u0e40\\u0e08\\u0e49\\u0e32\\u0e2b\\u0e19\\u0e49\\u0e32\\u0e17\\u0e35\\u0e48:' + NL +\n        'error_code: ' + code + NL +\n        'error_description: ' + desc + NL +\n        'execution_id: ' + execId;\n} else {\n  out = 'Sorry, the system hit a temporary problem. Our team has been notified.' + NL +\n        'Please try again later.' + NL + NL +\n        'Details for support:' + NL +\n        'error_code: ' + code + NL +\n        'error_description: ' + desc + NL +\n        'execution_id: ' + execId;\n}\n\nreturn [{ json: {\n  output: out,\n  timestamp: new Date().toISOString(),\n  workflow_name: $workflow.name || '04_RAG_Chat',\n  node_name: (err.node && err.node.name) || err.nodeName || '',\n  error_code: String(code),\n  error_description: desc,\n  execution_id: execId,\n  source: 'inline_04',\n} }];",
+        "parameters": {
+          "jsCode": "const NL = String.fromCharCode(10);\nconst norm = $('Normalize Input').first().json || {};\nconst cfg = (($('Load Config').first() || {}).json) || {};\n\n// The item arriving here is the errored node's error payload.\nconst j = $input.first().json || {};\nconst err = j.error || j || {};\n\n// Pull the most useful code + description we can from the n8n error shape.\nconst code = err.httpCode || err.code || err.name || err.errorCode ||\n  (err.context && err.context.httpCode) || 'ERROR';\nlet desc = err.description || err.message ||\n  (err.cause && (err.cause.message || err.cause.description)) ||\n  (typeof err === 'string' ? err : '') || 'Unknown error';\ndesc = String(desc).slice(0, 500);\n\n// [Claude edit] 2026-07-26 — quota/rate-limit detection uses the ERROR\n// DESCRIPTION TEXT, not httpCode/code/errorCode. Real production log rows\n// (Google Sheet, execution_ids 457-466, 2026-07-18) confirmed those fields\n// are NOT populated by the Gemini node here — they all fell through to the\n// literal string 'ERROR'. Only description text (e.g. \"The service is\n// receiving too many requests from you\") is reliable, so detection is\n// pattern-matched against desc/code text instead of a structured field.\n// Restore: n8n workflow version history on 04_RAG_Chat (IfWBPDcLz7adFXgg).\nfunction isQuotaOrRateLimit(text) {\n  const s = String(text || '').toLowerCase();\n  return /too many requests|quota|rate limit|resource_exhausted|429/.test(s);\n}\nconst quotaError = isQuotaOrRateLimit(desc) || isQuotaOrRateLimit(code);\n\nconst isThai = /[\\u0E00-\\u0E7F]/.test(String(norm.chatInput || '')) || norm.channel === 'line';\nconst execId = String($execution.id || '');\n\nfunction cfgBool(v, fallback) {\n  if (v === true || v === 'true' || v === 1 || v === '1') return true;\n  if (v === false || v === 'false' || v === 0 || v === '0') return false;\n  return fallback;\n}\n// [Claude edit] 2026-07-26 — both flags read from chatbot_config, defaulting\n// to the PRIOR always-on behavior if the config row hasn't set them yet.\nconst fallbackToFaqOnQuota = cfgBool(cfg.fallback_to_faq_on_quota_exceeded, true);\nconst notifyUserOnError = cfgBool(cfg.notify_user_on_error, true);\n\n// GRACEFUL FALLBACK: only attempted for QUOTA/RATE-LIMIT errors (matches the\n// real incident pattern) and only when the config flag allows it. Non-quota\n// errors always skip straight to the error message below.\nlet fmBest = '';\nlet fmSim = -1;\nif (quotaError && fallbackToFaqOnQuota) {\n  try {\n    const fm = ($('FAQ Match').first() || {}).json || {};\n    fmBest = String(fm.best_answer || '').trim();\n    fmSim = Number(fm.faq_sim);\n  } catch (e) { fmBest = ''; }\n}\nif (fmBest && isFinite(fmSim) && fmSim >= 0.4) {\n  return [{ json: {\n    output: fmBest,\n    timestamp: new Date().toISOString(),\n    workflow_name: $workflow.name || '04_RAG_Chat',\n    node_name: (err.node && err.node.name) || err.nodeName || 'RAG Agent',\n    error_code: String(code),\n    error_description: (desc + ' | served FAQ best-match fallback (sim=' + fmSim.toFixed(3) + ')').slice(0, 500),\n    execution_id: execId,\n    source: 'faq_fallback_04',\n  } }];\n}\n\n// Message shown to the asker so they don't keep waiting.\nvar out;\nif (!notifyUserOnError) {\n  out = isThai\n    ? ('\\u0e02\\u0e2d\\u0e2d\\u0e20\\u0e31\\u0e22\\u0e04\\u0e48\\u0e30 \\u0e23\\u0e30\\u0e1a\\u0e1a\\u0e21\\u0e35\\u0e1b\\u0e31\\u0e0d\\u0e2b\\u0e32\\u0e0a\\u0e31\\u0e48\\u0e27\\u0e04\\u0e23\\u0e32\\u0e27 \\u0e01\\u0e23\\u0e38\\u0e13\\u0e32\\u0e25\\u0e2d\\u0e07\\u0e43\\u0e2b\\u0e21\\u0e48\\u0e2d\\u0e35\\u0e01\\u0e04\\u0e23\\u0e31\\u0e49\\u0e07\\u0e43\\u0e19\\u0e20\\u0e32\\u0e22\\u0e2b\\u0e25\\u0e31\\u0e07 \\ud83d\\ude4f')\n    : 'Sorry, the system hit a temporary problem. Please try again later. \\ud83d\\ude4f';\n} else if (isThai) {\n  out = '\\u0e02\\u0e2d\\u0e2d\\u0e20\\u0e31\\u0e22\\u0e04\\u0e48\\u0e30 \\u0e23\\u0e30\\u0e1a\\u0e1a\\u0e21\\u0e35\\u0e1b\\u0e31\\u0e0d\\u0e2b\\u0e32\\u0e0a\\u0e31\\u0e48\\u0e27\\u0e04\\u0e23\\u0e32\\u0e27 \\u0e17\\u0e35\\u0e21\\u0e07\\u0e32\\u0e19\\u0e44\\u0e14\\u0e49\\u0e23\\u0e31\\u0e1a\\u0e41\\u0e08\\u0e49\\u0e07\\u0e41\\u0e25\\u0e49\\u0e27' + NL +\n        '\\u0e01\\u0e23\\u0e38\\u0e13\\u0e32\\u0e25\\u0e2d\\u0e07\\u0e43\\u0e2b\\u0e21\\u0e48\\u0e2d\\u0e35\\u0e01\\u0e04\\u0e23\\u0e31\\u0e49\\u0e07\\u0e43\\u0e19\\u0e20\\u0e32\\u0e22\\u0e2b\\u0e25\\u0e31\\u0e07' + NL + NL +\n        '\\u0e23\\u0e32\\u0e22\\u0e25\\u0e30\\u0e40\\u0e2d\\u0e35\\u0e22\\u0e14\\u0e2a\\u0e33\\u0e2b\\u0e23\\u0e31\\u0e1a\\u0e40\\u0e08\\u0e49\\u0e32\\u0e2b\\u0e19\\u0e49\\u0e32\\u0e17\\u0e35\\u0e48:' + NL +\n        'error_code: ' + code + NL +\n        'error_description: ' + desc + NL +\n        'execution_id: ' + execId;\n} else {\n  out = 'Sorry, the system hit a temporary problem. Our team has been notified.' + NL +\n        'Please try again later.' + NL + NL +\n        'Details for support:' + NL +\n        'error_code: ' + code + NL +\n        'error_description: ' + desc + NL +\n        'execution_id: ' + execId;\n}\n\nreturn [{ json: {\n  output: out,\n  timestamp: new Date().toISOString(),\n  workflow_name: $workflow.name || '04_RAG_Chat',\n  node_name: (err.node && err.node.name) || err.nodeName || '',\n  error_code: String(code),\n  error_description: desc,\n  execution_id: execId,\n  source: 'inline_04',\n} }];"
+        }
+      },
+      "position": [
+        0,
+        192
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "f89d6e33-5e0f-446f-97db-60236b2183a1",
+      "name": "Notify Admin",
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "jsonBody": "={ \"to\": {{ JSON.stringify($('Load Config').first().json.admin_line_target) }}, \"messages\": [ { \"type\": \"text\", \"text\": {{ JSON.stringify(\"🔔 มีคำถามที่ต้องการความช่วยเหลือจากแอดมิน\\nช่องทาง: \" + $('Handle Answer').first().json.channel + \"\\nคำถาม: \" + $('Handle Answer').first().json.question + \"\\nSession: \" + $('Handle Answer').first().json.session_id) }} } ] }",
+        "method": "POST",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://api.line.me/v2/bot/message/push"
+      },
+      "position": [
+        -288,
+        432
+      ],
+      "retryOnFail": true,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4
+    },
+    {
+      "id": "d2981d4a-fe39-4213-9230-36b730e9048a",
+      "name": "Notify Reply",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "notify-out",
+              "name": "output",
+              "type": "string",
+              "value": "ได้แจ้งแอดมินให้มาช่วยตอบแล้วครับ 🙏 กรุณารอสักครู่"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "position": [
+        0,
+        384
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4
+    },
+    {
+      "id": "33e08547-5f5c-415d-acf3-8b8a426483f2",
+      "name": "Decline Reply",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "decline-out",
+              "name": "output",
+              "type": "string",
+              "value": "รับทราบครับ 🙂 หากต้องการสอบถามเพิ่มเติม พิมพ์คำถามใหม่ได้เลย"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "position": [
+        0,
+        608
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4
+    },
+    {
+      "credentials": {
+        "googlePalmApi": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "0ff84f3c-7afc-446a-82b0-701c1c51991b",
+      "name": "Embed Question",
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "jsonBody": "={ \"model\": \"models/gemini-embedding-001\", \"content\": { \"parts\": [ { \"text\": {{ JSON.stringify($('Normalize Input').first().json.chatInput) }} } ] }, \"outputDimensionality\": 1536 }",
+        "method": "POST",
+        "nodeCredentialType": "googlePalmApi",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent"
+      },
+      "position": [
+        -2368,
+        1552
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4
+    },
+    {
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "executeOnce": true,
+      "id": "1b7d2f1c-d92c-42a3-bc79-55b8ea764281",
+      "name": "Read FAQ",
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "Media",
+          "mode": "list",
+          "value": "17UrPIJhIH9kwTNhx5m4I0gsOTQ6uRB3-NGTeEJz4DR4"
+        },
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "FAQ"
+        }
+      },
+      "position": [
+        -2144,
+        1264
+      ],
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7
+    },
+    {
+      "id": "5f9abeae-2708-4c6f-924f-a79065399875",
+      "name": "FAQ Match",
+      "parameters": {
+        "jsCode": "// Cosine-similarity match of the question embedding against cached FAQ rows.\nconst norm = $('Normalize Input').first().json || {};\nconst emb = ((($('Embed Question').first() || {}).json || {}).embedding || {}).values || [];\nconst cfg = (($('Load Config').first() || {}).json) || {};\n\nfunction cos(a, b) {\n  if (!a || !b || !a.length || !b.length || a.length !== b.length) return -1;\n  let d = 0, na = 0, nb = 0;\n  for (let i = 0; i < a.length; i++) { d += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }\n  if (na === 0 || nb === 0) return -1;\n  return d / (Math.sqrt(na) * Math.sqrt(nb));\n}\n\nfunction cfgNum(v, fallback) {\n  const n = Number(v);\n  return (v === null || v === undefined || v === '' || !isFinite(n)) ? fallback : n;\n}\n\n// [Claude edit] 2026-07-26 — TH / LEX_MIN / TH_HIGH now read from chatbot_config\n// (faq_match_threshold / faq_lex_min / faq_high_confidence_threshold), falling\n// back to the original hardcoded values if the config row hasn't set them yet.\n// Root cause fixed: HIT used to gate on raw cosine alone, so generic \"system/AI\"\n// questions crossed TH=0.6 with near-zero literal overlap (see execs #176/#177/#183).\n// Restore: n8n workflow version history on 04_RAG_Chat (workflowId IfWBPDcLz7adFXgg).\nconst TH = cfgNum(cfg.faq_match_threshold, 0.6);\nconst LEX_MIN = cfgNum(cfg.faq_lex_min, 0.08);\nconst TH_HIGH = cfgNum(cfg.faq_high_confidence_threshold, 0.85);\n// Tie-break margin: FAQ rows whose cosine is within this of the top candidate\n// are re-ranked by LEXICAL overlap, so a generic \"คืออะไร\" row does not steal a\n// more specific question that happens to sit slightly lower on cosine. Character\n// trigram Jaccard is used because Thai has no spaces between words.\nconst LEX_WEIGHT = 0.7;\nfunction approved(v) { return v === true || v === 'true' || v === 'TRUE' || v === 1 || v === '1'; }\nfunction trigrams(s) {\n  const t = String(s || '').toLowerCase().replace(/\\s+/g, '');\n  const set = {};\n  if (t.length < 3) { if (t) set[t] = 1; return set; }\n  for (let i = 0; i <= t.length - 3; i++) set[t.slice(i, i + 3)] = 1;\n  return set;\n}\nfunction lexOverlap(a, b) {\n  const A = trigrams(a), B = trigrams(b);\n  let inter = 0, ua = 0, ub = 0;\n  for (const k in A) { ua++; if (B[k]) inter++; }\n  for (const k in B) { ub++; }\n  const uni = ua + ub - inter;\n  return uni ? inter / uni : 0;\n}\nconst q = String(norm.chatInput || '');\nconst cands = [];\nfor (const it of $('Read FAQ').all()) {\n  const j = it.json || {};\n  if (!j || !j.question || !j.answer || j.embedding == null) continue;\n  if (!approved(j.approved)) continue;\n  let vec = [];\n  try { vec = typeof j.embedding === 'string' ? JSON.parse(j.embedding) : j.embedding; } catch (e) { vec = []; }\n  if (!Array.isArray(vec) || !vec.length) continue;\n  const sim = cos(emb, vec);\n  const lex = lexOverlap(q, j.question);\n  cands.push({ j: j, sim: sim, lex: lex, score: sim + LEX_WEIGHT * lex });\n}\n// Pick the highest COMBINED score (cosine + lexical bonus).\ncands.sort(function (a, b) { return b.score - a.score; });\nlet best = null, bestSim = -1, bestLexVal = 0;\nif (cands.length) { best = cands[0].j; bestSim = cands[0].sim; bestLexVal = cands[0].lex; }\nconst bestCos = cands.length ? Number(cands[0].sim.toFixed(4)) : -1;\nconst bestLex = cands.length ? Number(cands[0].lex.toFixed(4)) : 0;\nconst bestScore = cands.length ? Number(cands[0].score.toFixed(4)) : -1;\nconst faqDebug = [];\nfor (let i = 0; i < cands.length && i < 3; i++) { faqDebug.push({ q: String(cands[i].j.question).slice(0, 40), cos: Number(cands[i].sim.toFixed(4)), lex: Number(cands[i].lex.toFixed(4)), score: Number(cands[i].score.toFixed(4)) }); }\n\n// [Claude edit] 2026-07-26 — HIT now requires EITHER (a) very high cosine alone\n// (>= TH_HIGH, handles genuine paraphrases with near-zero literal overlap), OR\n// (b) cosine >= TH AND lexical overlap >= LEX_MIN (blocks the \"generic system\n// question\" false-positive pattern found in real logs).\nconst hit = !!best && (bestSim >= TH_HIGH || (bestSim >= TH && bestLexVal >= LEX_MIN));\nreturn [{ json: {\n  faq_hit: hit,\n  faq_question: hit ? String(best.question) : '',\n  faq_answer: hit ? String(best.answer) : '',\n  faq_hit_count: hit ? Number(best.hit_count || 0) : 0,\n  faq_sim: bestSim,\n  faq_cos: bestCos,\n  faq_lex: bestLex,\n  faq_score: bestScore,\n  faq_debug: faqDebug,\n  best_question: best ? String(best.question) : '',\n  best_answer: best ? String(best.answer) : '',\n  question: norm.chatInput || '',\n  channel: norm.channel || 'chat',\n  reply_token: norm.reply_token || '',\n  session_id: norm.session_id || 'chat-session',\n} }];"
+      },
+      "position": [
+        -1920,
+        1264
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "231db5aa-e21e-4ffc-8b03-0e42a31abe89",
+      "name": "FAQ Hit?",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "faq-hit",
+              "leftValue": "={{ $('FAQ Match').first().json.faq_hit }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        -1696,
+        1264
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "id": "ae63a819-6cbb-4bac-9340-304eb9185d2a",
+      "name": "FAQ Cached Reply",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "faq-out",
+              "name": "output",
+              "type": "string",
+              "value": "={{ $('FAQ Match').first().json.faq_answer }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "position": [
+        0,
+        800
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4
+    },
+    {
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "e6d20297-c026-4717-a929-120e56286a15",
+      "name": "Bump Hit Count",
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "question"
+          ],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "question",
+              "id": "question",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "display": true,
+              "displayName": "hit_count",
+              "id": "hit_count",
+              "required": false,
+              "type": "number"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "display": true,
+              "displayName": "cos",
+              "id": "cos",
+              "required": false,
+              "type": "number"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "display": true,
+              "displayName": "lex",
+              "id": "lex",
+              "required": false,
+              "type": "number"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "display": true,
+              "displayName": "score",
+              "id": "score",
+              "required": false,
+              "type": "number"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "display": true,
+              "displayName": "updated_at",
+              "id": "updated_at",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "cos": "={{ $('FAQ Match').first().json.faq_cos }}",
+            "hit_count": "={{ $('FAQ Match').first().json.faq_hit_count + 1 }}",
+            "lex": "={{ $('FAQ Match').first().json.faq_lex }}",
+            "question": "={{ $('FAQ Match').first().json.faq_question }}",
+            "score": "={{ $('FAQ Match').first().json.faq_score }}",
+            "updated_at": "={{ $now.toISO() }}"
+          }
+        },
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "Media",
+          "mode": "list",
+          "value": "17UrPIJhIH9kwTNhx5m4I0gsOTQ6uRB3-NGTeEJz4DR4"
+        },
+        "operation": "appendOrUpdate",
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "FAQ"
+        }
+      },
+      "position": [
+        224,
+        1120
+      ],
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7
+    },
+    {
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "executeOnce": true,
+      "id": "3279cddd-a709-4d4b-8d29-6f136541ea22",
+      "name": "Match Chunks",
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "jsonBody": "={ \"query_embedding\": {{ JSON.stringify($('Embed Question').first().json.embedding.values) }}, \"match_count\": 4, \"filter\": {} }",
+        "method": "POST",
+        "nodeCredentialType": "supabaseApi",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "={{ $(\"Config\").first().json.supabase_url }}/rest/v1/rpc/match_documents"
+      },
+      "position": [
+        -1472,
+        1392
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4
+    },
+    {
+      "id": "98642cac-671f-4d09-b86c-64f9a6074674",
+      "name": "Build Context",
+      "parameters": {
+        "jsCode": "const NL = String.fromCharCode(10);\nconst norm = $('Normalize Input').first().json || {};\nconst cfg = $('Load Config').first().json || {};\n\nlet threshold = Number(cfg.score_threshold);\nif (!isFinite(threshold)) threshold = 0.75;\n\nconst rows = [];\nlet maxScore = 0;\nfor (const it of $('Match Chunks').all()) {\n  const j = it.json || {};\n  if (!j || (!j.content && !j.metadata)) continue;\n  const sim = Number(j.similarity);\n  if (isFinite(sim) && sim > maxScore) maxScore = sim;\n  rows.push(j);\n}\n\nconst MAX_CHUNK_CHARS = 350;\nfunction clip(s) {\n  const t = String(s || '').trim();\n  return t.length > MAX_CHUNK_CHARS ? (t.slice(0, MAX_CHUNK_CHARS) + '…') : t;\n}\n\nconst yt = [];\nconst docs = [];\nfor (const r of rows) {\n  const meta = r.metadata || {};\n  const st = String(meta.source_type || '').toLowerCase();\n  const entry = {\n    title: meta.title || meta.document_id || 'Untitled',\n    content: clip(r.content),\n    timestamp_url: meta.timestamp_url || '',\n    source_url: meta.source_url || '',\n  };\n  if (st === 'youtube') yt.push(entry);\n  else docs.push(entry);\n}\n\nfunction block(list) {\n  const parts = [];\n  for (let i = 0; i < list.length; i++) {\n    const e = list[i];\n    let s = '[' + (i + 1) + '] ' + e.title;\n    const link = e.timestamp_url || e.source_url;\n    if (link) s += NL + 'jump: ' + link;\n    s += NL + e.content;\n    parts.push(s);\n  }\n  return parts.join(NL + '---' + NL);\n}\n\nlet context = '';\ncontext += '=== YOUTUBE SOURCES (' + yt.length + ') ===' + NL;\ncontext += (yt.length ? block(yt) : '(none)');\ncontext += NL + NL + '=== DOCUMENT SOURCES (' + docs.length + ') ===' + NL;\ncontext += (docs.length ? block(docs) : '(none)');\n\nreturn [{ json: {\n  question: norm.chatInput || '',\n  context: context,\n  max_score: maxScore,\n  above_threshold: maxScore >= threshold,\n  has_youtube: yt.length > 0,\n  has_document: docs.length > 0,\n  channel: norm.channel || 'chat',\n  reply_token: norm.reply_token || '',\n  session_id: norm.session_id || 'chat-session',\n} }];"
+      },
+      "position": [
+        -1248,
+        1392
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "ec1634ff-7a1f-42a5-a6d1-edad3415d8df",
+      "name": "Above Threshold?",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "above",
+              "leftValue": "={{ $('Build Context').first().json.above_threshold }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        -1024,
+        1392
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "id": "ce79d91c-7659-4424-bd2f-72ae929d5386",
+      "name": "RAG Agent",
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "options": {
+          "enableStreaming": false,
+          "systemMessage": "You are a helpful RAG knowledge assistant for a LINE OA chatbot.\n\nLANGUAGE\n- ALWAYS reply in the SAME language as the user's question (detect it from the question). If the question is Thai, answer in Thai; if English, answer in English.\n\nSOURCES\n- You are given retrieved context split into two groups: \"YOUTUBE SOURCES\" and \"DOCUMENT SOURCES\". Each entry may include a \"jump:\" URL.\n- Answer ONLY from the provided context. Never invent facts.\n\nPRIORITY & FORMAT (very important)\n1. Prefer YouTube first. If the YOUTUBE SOURCES answer the question, base the main answer on them and ALWAYS include the exact \"jump:\" timestamp link on its own line so the user can jump straight to that moment.\n2. If, in ADDITION to YouTube, the DOCUMENT SOURCES also contain relevant info, append it as supplementary detail on the line(s) IMMEDIATELY AFTER the YouTube link (document answer goes right below the YouTube link).\n3. If there are NO relevant YouTube sources, answer from the DOCUMENT SOURCES only.\n4. If neither group is relevant, say (in the user's language) that you could not find it in the knowledge base.\n5. Put everything in ONE single reply.\n\nSTYLE\n- This reply is delivered as LINE/plain text. DO NOT use Markdown tables (| ... |) — they render badly and cause errors. For comparisons, use short bullet lines instead, e.g. \"• หัวข้อ: ทั่วไป → SuperChoice AI\".\n- Use relevant emojis and **bold** highlights for key points to make it engaging and easy to read.\n- NEVER pad text with runs of spaces, tabs, or dashes for alignment. Keep lines naturally short.\n- BE CONCISE. Keep the whole reply well under 4000 characters. Summarize; do not dump raw context."
+        },
+        "promptType": "define",
+        "text": "=User question:\n{{ $json.question }}\n\nRetrieved context:\n{{ $json.context }}"
+      },
+      "position": [
+        -352,
+        1072
+      ],
+      "retryOnFail": true,
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1
+    },
+    {
+      "credentials": {
+        "googlePalmApi": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "36291a3f-4841-4826-acf3-3803b62c3149",
+      "name": "Gemini Chat Model",
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "position": [
+        -336,
+        1296
+      ],
+      "retryOnFail": true,
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "2c152edf-a7f8-483d-8949-79a4ebda2e7c",
+      "name": "Session Memory",
+      "parameters": {
+        "contextWindowLength": 3,
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Normalize Input').first().json.session_id }}"
+      },
+      "position": [
+        -208,
+        1296
+      ],
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4
+    },
+    {
+      "id": "e213fb9e-9355-4fd8-87c2-5314d0c89e82",
+      "name": "Build FAQ Record",
+      "parameters": {
+        "jsCode": "const LEX_WEIGHT = 0.7;\nfunction cos(a, b) {\n  if (!a || !b || !a.length || !b.length || a.length !== b.length) return -1;\n  let d = 0, na = 0, nb = 0;\n  for (let i = 0; i < a.length; i++) { d += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }\n  if (na === 0 || nb === 0) return -1;\n  return d / (Math.sqrt(na) * Math.sqrt(nb));\n}\nfunction trigrams(s) {\n  const t = String(s || '').toLowerCase().replace(/\\s+/g, '');\n  const set = {};\n  if (t.length < 3) { if (t) set[t] = 1; return set; }\n  for (let i = 0; i <= t.length - 3; i++) set[t.slice(i, i + 3)] = 1;\n  return set;\n}\nfunction lexOverlap(a, b) {\n  const A = trigrams(a), B = trigrams(b);\n  let inter = 0, ua = 0, ub = 0;\n  for (const k in A) { ua++; if (B[k]) inter++; }\n  for (const k in B) { ub++; }\n  const uni = ua + ub - inter;\n  return uni ? inter / uni : 0;\n}\nconst q = (($('Build Context').first() || {}).json || {}).question ||\n  (($('Normalize Input').first() || {}).json || {}).chatInput || '';\nconst ans = String(($input.first().json || {}).output || '');\nconst emb = ((($('Embed Question').first() || {}).json || {}).embedding || {}).values || [];\nif (!q || !ans) return [];\n// Nearest-competitor SEPARATION: how close this new row sits to the closest\n// EXISTING approved FAQ row (low separation => higher confusion risk). Uses the\n// same cos + LEX_WEIGHT*lex scoring as FAQ Match, so the stored cos/lex/score\n// describe the toughest competitor this new row will face.\nlet sepCos = 0, sepLex = 0, sepScore = 0, found = false;\nfor (const it of $('Read FAQ').all()) {\n  const r = it.json || {};\n  if (!r || !r.question || r.embedding == null) continue;\n  if (String(r.question).trim() === String(q).trim()) continue;\n  let vec = [];\n  try { vec = typeof r.embedding === 'string' ? JSON.parse(r.embedding) : r.embedding; } catch (e) { vec = []; }\n  const c = (Array.isArray(vec) && vec.length && emb.length) ? cos(emb, vec) : -1;\n  const l = lexOverlap(q, r.question);\n  const s = c + LEX_WEIGHT * l;\n  if (!found || s > sepScore) { found = true; sepCos = c; sepLex = l; sepScore = s; }\n}\nreturn [{ json: {\n  question: q,\n  answer: ans,\n  hit_count: 1,\n  embedding: JSON.stringify(emb),\n  rank: '',\n  cos: Number(sepCos.toFixed(4)),\n  lex: Number(sepLex.toFixed(4)),\n  score: Number(sepScore.toFixed(4)),\n  approved: false,\n  updated_at: new Date().toISOString(),\n} }];"
+      },
+      "position": [
+        0,
+        992
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "f1b08929-299b-4238-9582-490fa0f1c16f",
+      "name": "Record FAQ",
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [
+            "question"
+          ],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "question",
+              "id": "question",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "display": true,
+              "displayName": "answer",
+              "id": "answer",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "display": true,
+              "displayName": "hit_count",
+              "id": "hit_count",
+              "required": false,
+              "type": "number"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "display": true,
+              "displayName": "embedding",
+              "id": "embedding",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "display": true,
+              "displayName": "rank",
+              "id": "rank",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "display": true,
+              "displayName": "cos",
+              "id": "cos",
+              "required": false,
+              "type": "number"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "display": true,
+              "displayName": "lex",
+              "id": "lex",
+              "required": false,
+              "type": "number"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "display": true,
+              "displayName": "score",
+              "id": "score",
+              "required": false,
+              "type": "number"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "display": true,
+              "displayName": "approved",
+              "id": "approved",
+              "required": false,
+              "type": "boolean"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "display": true,
+              "displayName": "updated_at",
+              "id": "updated_at",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {}
+        },
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "Media",
+          "mode": "list",
+          "value": "17UrPIJhIH9kwTNhx5m4I0gsOTQ6uRB3-NGTeEJz4DR4"
+        },
+        "operation": "appendOrUpdate",
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "FAQ"
+        }
+      },
+      "position": [
+        224,
+        1328
+      ],
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7
+    },
+    {
+      "id": "790d862f-c5c4-4f16-9358-0e5289339c77",
+      "name": "Build Offer",
+      "parameters": {
+        "jsCode": "const NL = String.fromCharCode(10);\nconst cfg = $('Load Config').first().json || {};\nconst norm = $('Normalize Input').first().json || {};\nconst q = String(norm.chatInput || '');\n\nconst offInt = cfg.enable_internet_search === true || cfg.enable_internet_search === 'true';\nconst offNot = cfg.enable_notify_admin === true || cfg.enable_notify_admin === 'true';\nconst isThai = /[\\u0E00-\\u0E7F]/.test(q);\n\nlet out = '';\nlet save = false;\n\nif (!offInt && !offNot) {\n  out = isThai ? 'ขออภัย ไม่พบข้อมูลที่ตรงพอในคลังความรู้ 🙇' : 'Sorry, I could not find a good match in the knowledge base. 🙇';\n  save = false;\n} else {\n  save = true;\n  const lines = [];\n  lines.push(isThai ? 'ขออภัย ไม่พบข้อมูลที่ตรงพอในคลังความรู้ 🙇' : 'Sorry, no strong match found in the knowledge base. 🙇');\n  lines.push(isThai ? 'ต้องการให้ช่วยเพิ่มเติมไหม? พิมพ์ตัวเลือก:' : 'Would you like extra help? Reply with:');\n  if (offInt) lines.push(isThai ? '1️⃣ ค้นหาข้อมูลจากอินเทอร์เน็ต' : '1️⃣ Search the internet');\n  if (offNot) lines.push(isThai ? '2️⃣ แจ้งแอดมินให้มาช่วยตอบ' : '2️⃣ Notify an admin to help');\n  lines.push(isThai ? 'N = ไม่ต้อง' : 'N = No thanks');\n  out = lines.join(NL);\n}\n\nreturn [{ json: {\n  output: out,\n  save_pending: save,\n  offered_internet: offInt,\n  offered_notify: offNot,\n  question: q,\n  session_id: norm.session_id,\n  channel: norm.channel || 'chat',\n} }];"
+      },
+      "position": [
+        -800,
+        1552
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "2f2a75ab-f72a-4f31-823f-c0eb4076a4f8",
+      "name": "Need Save?",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "need-save",
+              "leftValue": "={{ $json.save_pending }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        -576,
+        1552
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "id": "5b014d1a-0c32-4c1c-8cd4-a3c9508e24db",
+      "name": "Save Pending Row",
+      "parameters": {
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "session_id"
+          ],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "display": true,
+              "displayName": "session_id",
+              "id": "session_id",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "display": true,
+              "displayName": "question",
+              "id": "question",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "display": true,
+              "displayName": "offered_internet",
+              "id": "offered_internet",
+              "required": false,
+              "type": "boolean"
+            },
+            {
+              "display": true,
+              "displayName": "offered_notify",
+              "id": "offered_notify",
+              "required": false,
+              "type": "boolean"
+            },
+            {
+              "display": true,
+              "displayName": "channel",
+              "id": "channel",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "display": true,
+              "displayName": "asked_at",
+              "id": "asked_at",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "asked_at": "={{ $now.toISO() }}",
+            "channel": "={{ $('Build Offer').first().json.channel }}",
+            "offered_internet": "={{ $('Build Offer').first().json.offered_internet }}",
+            "offered_notify": "={{ $('Build Offer').first().json.offered_notify }}",
+            "question": "={{ $('Build Offer').first().json.question }}",
+            "session_id": "={{ $('Build Offer').first().json.session_id }}"
+          }
+        },
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "pending_confirmations",
+          "cachedResultUrl": "/projects/fTE250SCnzLLnqUC/datatables/zYzdpn3mi2yYbCHS",
+          "mode": "list",
+          "value": "zYzdpn3mi2yYbCHS"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "session_id",
+              "keyValue": "={{ $('Build Offer').first().json.session_id }}"
+            }
+          ]
+        },
+        "matchType": "allConditions",
+        "operation": "upsert",
+        "options": {}
+      },
+      "position": [
+        -288,
+        1472
+      ],
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "265e7118-708d-4875-9c78-c62c65f317ce",
+      "name": "Reply After Save",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "offer-out",
+              "name": "output",
+              "type": "string",
+              "value": "={{ $('Build Offer').first().json.output }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "position": [
+        0,
+        1472
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4
+    },
+    {
+      "id": "87ebff9b-8896-4bc7-b32b-c9e5fe48e9f5",
+      "name": "LINE Webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "options": {},
+        "path": "line-webhook"
+      },
+      "position": [
+        -3712,
+        1008
+      ],
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "webhookId": "line-oa-rag-webhook"
+    },
+    {
+      "id": "8abdce8b-ee36-471f-9047-f630f402566f",
+      "name": "Split For LINE",
+      "parameters": {
+        "jsCode": "const MAX = 4900;\nconst MAX_MSGS = 5;\nconst NL = String.fromCharCode(10);\n\nconst norm = $('Normalize Input').first().json || {};\n\nlet text = String($json.output || '');\ntext = text.replace(/[ \\t\\u00A0]{3,}/g, ' ');\ntext = text.replace(/-{4,}/g, '---');\nconst cleanedLines = [];\nfor (const ln of text.split(NL)) {\n  const t = ln.replace(/[ \\t\\u00A0]+$/g, '');\n  if (t.replace(/[\\s|\\-]/g, '').length === 0) continue;\n  cleanedLines.push(t);\n}\ntext = cleanedLines.join(NL).trim();\nif (!text) text = '(ไม่มีคำตอบ)';\n\nconst pieces = [];\nlet buf = '';\nfor (const rawLine of text.split(NL)) {\n  let line = rawLine;\n  while (line.length > MAX) {\n    if (buf) { pieces.push(buf); buf = ''; }\n    pieces.push(line.slice(0, MAX));\n    line = line.slice(MAX);\n  }\n  const candidate = buf ? (buf + NL + line) : line;\n  if (candidate.length > MAX) {\n    if (buf) pieces.push(buf);\n    buf = line;\n  } else {\n    buf = candidate;\n  }\n}\nif (buf) pieces.push(buf);\n\nconst nonEmpty = [];\nfor (const p of pieces) {\n  if (String(p || '').trim().length > 0) nonEmpty.push(p);\n}\nif (nonEmpty.length === 0) nonEmpty.push('(ไม่มีคำตอบ)');\n\nlet kept = nonEmpty.slice(0, MAX_MSGS);\nif (nonEmpty.length > MAX_MSGS) {\n  let last = kept[MAX_MSGS - 1];\n  const note = NL + '… (คำตอบยาวเกินขีดจำกัด ตัดบางส่วนออก)';\n  if ((last.length + note.length) > MAX) last = last.slice(0, MAX - note.length);\n  kept[MAX_MSGS - 1] = last + note;\n}\n\nconst messages = kept.map(function (t) { return { type: 'text', text: t }; });\n\nreturn [{ json: { reply_token: norm.reply_token || '', messages: messages } }];"
+      },
+      "position": [
+        448,
+        528
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "b1d17f99-54df-4a49-b3e4-b03e60849491",
+      "name": "LINE Reply",
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "jsonBody": "={ \"replyToken\": {{ JSON.stringify($json.reply_token) }}, \"messages\": {{ JSON.stringify($json.messages) }} }",
+        "method": "POST",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://api.line.me/v2/bot/message/reply"
+      },
+      "position": [
+        672,
+        528
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4
+    },
+    {
+      "id": "e34eeac0-b6bf-42b4-b7b5-5a7f6a4b4b9c",
+      "name": "Chat Reply",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "chat-out",
+              "name": "output",
+              "type": "string",
+              "value": "={{ $json.output }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "position": [
+        448,
+        720
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4
+    },
+    {
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "b913e5da-60e2-4a18-a6a7-389023756082",
+      "name": "Append Error Log",
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "schema": [
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "timestamp",
+              "id": "timestamp",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "workflow_name",
+              "id": "workflow_name",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "node_name",
+              "id": "node_name",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "error_code",
+              "id": "error_code",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "error_description",
+              "id": "error_description",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "execution_id",
+              "id": "execution_id",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "source",
+              "id": "source",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "error_code": "={{ $json.error_code }}",
+            "error_description": "={{ $json.error_description }}",
+            "execution_id": "={{ $json.execution_id }}",
+            "node_name": "={{ $json.node_name }}",
+            "source": "={{ $json.source }}",
+            "timestamp": "={{ $json.timestamp }}",
+            "workflow_name": "={{ $json.workflow_name }}"
+          }
+        },
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "Media",
+          "mode": "list",
+          "value": "17UrPIJhIH9kwTNhx5m4I0gsOTQ6uRB3-NGTeEJz4DR4"
+        },
+        "operation": "append",
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Logs"
+        }
+      },
+      "position": [
+        224,
+        736
+      ],
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7
+    }
+  ],
+  "connections": {
+    "Above Threshold?": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "RAG Agent",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Build Offer",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Build Context": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Above Threshold?",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Build Error Reply": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Append Error Log",
+            "type": "main"
+          },
+          {
+            "index": 0,
+            "node": "Is LINE?",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Build FAQ Record": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Record FAQ",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Build Offer": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Need Save?",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Chat Trigger": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Normalize Input",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Check Pending": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Has Pending?",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Load Config",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Decline Reply": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Is LINE?",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Embed Question": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Read FAQ",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Build Error Reply",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "FAQ Cached Reply": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Bump Hit Count",
+            "type": "main"
+          },
+          {
+            "index": 0,
+            "node": "Is LINE?",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "FAQ Hit?": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "FAQ Cached Reply",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Match Chunks",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "FAQ Match": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "FAQ Hit?",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "index": 0,
+            "node": "RAG Agent",
+            "type": "ai_languageModel"
+          }
+        ]
+      ]
+    },
+    "Handle Answer": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Delete Pending",
+            "type": "main"
+          },
+          {
+            "index": 0,
+            "node": "Route Answer",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Has Pending?": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Handle Answer",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Embed Question",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Internet Search": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Parse Internet",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Build Error Reply",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Is LINE?": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Split For LINE",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Chat Reply",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "LINE Webhook": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Normalize Input",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Load Config": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Check Pending",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Match Chunks": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Build Context",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Need Save?": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Save Pending Row",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Is LINE?",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Normalize Input": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Config",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Notify Admin": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Notify Reply",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Build Error Reply",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Notify Reply": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Is LINE?",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Parse Internet": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Is LINE?",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "RAG Agent": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Build FAQ Record",
+            "type": "main"
+          },
+          {
+            "index": 0,
+            "node": "Is LINE?",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Build Error Reply",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Read FAQ": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "FAQ Match",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Reply After Save": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Is LINE?",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Route Answer": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Internet Search",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Notify Admin",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Decline Reply",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Save Pending Row": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Reply After Save",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Session Memory": {
+      "ai_memory": [
+        [
+          {
+            "index": 0,
+            "node": "RAG Agent",
+            "type": "ai_memory"
+          }
+        ]
+      ]
+    },
+    "Split For LINE": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "LINE Reply",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "v0hnP0nFMXxgbKlb",
+    "executionOrder": "v1",
+    "timeSavedMode": "fixed"
+  },
+  "tags": [],
+  "nodeGroups": [],
+  "id": "IfWBPDcLz7adFXgg",
+  "versionId": "af3e0cf0-5f30-4df7-83e0-22e51012af76",
+  "createdAt": "2026-07-19T07:47:35.009Z",
+  "updatedAt": "2026-07-26T10:35:50.680Z",
+  "parentFolderId": null,
+  "_backup": {
+    "sourceProjectId": "fTE250SCnzLLnqUC",
+    "sourceProjectName": "SuperChoiceAI",
+    "sourceProjectType": "team",
+    "sourceFolder": "_root",
+    "credentialValuesIncluded": false,
+    "credentialsRequireManualRebind": true
+  }
+}

@@ -1,0 +1,808 @@
+{
+  "name": "03_YouTube_Pipeline",
+  "nodes": [
+    {
+      "id": "8429cb95-a20a-45ad-b096-69dfa01c1ed3",
+      "name": "Sticky Note c35a595a",
+      "parameters": {
+        "content": "YouTube Pipeline (B) - manual embed + upsert. ERROR LOGGING: settings.errorWorkflow -> 05_Error_Logs (writes to Logs tab).",
+        "height": 200,
+        "width": 380
+      },
+      "position": [
+        -560,
+        576
+      ],
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1
+    },
+    {
+      "id": "0e1e8d00-3d4b-4b09-9940-706567fade5d",
+      "name": "Start",
+      "parameters": {},
+      "position": [
+        -2016,
+        192
+      ],
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1
+    },
+    {
+      "id": "2cd0f120-7fc5-41b1-bc11-ed170480a040",
+      "name": "Config",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cfg-supabase-url",
+              "name": "supabase_url",
+              "type": "string",
+              "value": "https://oyadomcsptmgudwuxwvq.supabase.co"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "position": [
+        -1792,
+        192
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4
+    },
+    {
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "ee02caf4-6fa9-4cda-b36d-6b9d02681ef8",
+      "name": "Read Sheet Rows",
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "Media",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/17UrPIJhIH9kwTNhx5m4I0gsOTQ6uRB3-NGTeEJz4DR4/edit?usp=drivesdk",
+          "mode": "list",
+          "value": "17UrPIJhIH9kwTNhx5m4I0gsOTQ6uRB3-NGTeEJz4DR4"
+        },
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "cachedResultName": "Videos",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/17UrPIJhIH9kwTNhx5m4I0gsOTQ6uRB3-NGTeEJz4DR4/edit#gid=1082530094",
+          "mode": "list",
+          "value": 1082530094
+        }
+      },
+      "position": [
+        -1568,
+        192
+      ],
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7
+    },
+    {
+      "id": "499a3e1e-230e-49cf-b0e7-32b3aab98ef0",
+      "name": "Filter NEW Only",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "status-is-new",
+              "leftValue": "={{ $json.Status }}",
+              "operator": {
+                "operation": "equals",
+                "type": "string"
+              },
+              "rightValue": "NEW"
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        -1344,
+        192
+      ],
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3
+    },
+    {
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "ebdc7663-96cb-4406-863f-179e09d6e9dd",
+      "name": "Supadata Transcript",
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        },
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "url",
+              "value": "={{ $json.ID ? 'https://www.youtube.com/watch?v=' + $json.ID : ($json.Source || $json.video_url || $json.url || $json.link) }}"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "url": "https://api.supadata.ai/v1/transcript"
+      },
+      "position": [
+        -1120,
+        192
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4
+    },
+    {
+      "id": "a0c277d5-908e-4118-9c71-7df6c23efd30",
+      "name": "Parse Transcript",
+      "parameters": {
+        "jsCode": "// Convert Supadata transcript segments into Common-Schema chunks.\nconst CHUNK_SIZE = 1000;\nconst CREATED_AT = new Date().toISOString();\nconst PIPELINE_VERSION = '1.0';\n\nfunction extractVideoId(url) {\n  if (!url) return '';\n  let m = url.match(/[?&]v=([\\w-]{6,})/);\n  if (m) return m[1];\n  m = url.match(/youtu\\.be\\/([\\w-]{6,})/);\n  if (m) return m[1];\n  m = url.match(/\\/embed\\/([\\w-]{6,})/);\n  if (m) return m[1];\n  m = url.match(/\\/shorts\\/([\\w-]{6,})/);\n  if (m) return m[1];\n  return '';\n}\n\nconst items = $input.all();\nconst out = [];\n\nfor (let i = 0; i < items.length; i++) {\n  const g = items[i].json || {};\n\n  let src = {};\n  try {\n    const m = $('Read Sheet Rows').itemMatching(i);\n    if (m && m.json) src = m.json;\n  } catch (e) { /* pairing unavailable */ }\n\n  const videoId = src.ID || extractVideoId(src.Source || src.video_url || src.url || src.link || '');\n  const url = videoId ? ('https://www.youtube.com/watch?v=' + videoId)\n    : (src.Source || src.video_url || src.url || src.link || '');\n  const title = src.Title || src.title || videoId || 'YouTube video';\n\n  let nodeError = '';\n  if (g.error) nodeError = (typeof g.error === 'string') ? g.error : (g.error.message || g.error.description || JSON.stringify(g.error));\n  if (!nodeError && g.message && !Array.isArray(g.content)) nodeError = 'Supadata: ' + String(g.message);\n\n  const content = Array.isArray(g.content) ? g.content : [];\n\n  const chunks = [];\n  let buf = '';\n  let bufStart = null;\n  for (const s of content) {\n    const t = String((s && s.text) || '').replace(/\\s+/g, ' ').trim();\n    if (!t) continue;\n    let st = 0;\n    if (s && s.offset != null) st = Number(s.offset) / 1000;\n    else if (s && s.start != null) st = Number(s.start);\n    if (!isFinite(st)) st = 0;\n    if (bufStart === null) bufStart = st;\n    if (buf && (buf.length + 1 + t.length) > CHUNK_SIZE) {\n      chunks.push({ text: buf.trim(), start: bufStart });\n      buf = t;\n      bufStart = st;\n    } else {\n      buf = buf ? buf + ' ' + t : t;\n    }\n  }\n  if (buf) chunks.push({ text: buf.trim(), start: bufStart || 0 });\n\n  const totalText = chunks.reduce((a, c) => a + c.text.length, 0);\n  if (!chunks.length || totalText < 20) {\n    let reason = nodeError;\n    if (!reason) reason = 'No transcript returned by Supadata (no captions / restricted / unsupported video)';\n    out.push({ json: { _row_status: 'error', video_url: url, source_url: url, video_id: videoId, title: title, error_message: reason } });\n    continue;\n  }\n\n  for (let c = 0; c < chunks.length; c++) {\n    const startSec = Math.floor(chunks[c].start || 0);\n    const sep = url.indexOf('?') >= 0 ? '&' : '?';\n    out.push({\n      json: {\n        _row_status: 'ok',\n        document_id: videoId,\n        title: title,\n        source_type: 'youtube',\n        source_url: url,\n        chunk_index: c,\n        chunk_count: chunks.length,\n        text: chunks[c].text,\n        created_at: CREATED_AT,\n        pipeline_version: PIPELINE_VERSION,\n        video_id: videoId,\n        start_time: startSec,\n        timestamp_url: url ? (url + sep + 't=' + startSec + 's') : '',\n      },\n    });\n  }\n}\n\nreturn out;"
+      },
+      "position": [
+        -896,
+        192
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "746d00b6-3a1f-4b5d-8171-34751b82c7de",
+      "name": "Transcribed OK?",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "row-status-ok",
+              "leftValue": "={{ $json._row_status }}",
+              "operator": {
+                "operation": "equals",
+                "type": "string"
+              },
+              "rightValue": "ok"
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        -672,
+        192
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "id": "96c4fb04-053f-4d36-a8d7-4b98cc040a87",
+      "name": "Hash Content",
+      "parameters": {
+        "dataPropertyName": "content_hash",
+        "value": "={{ $json.text }}"
+      },
+      "position": [
+        -448,
+        96
+      ],
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 2
+    },
+    {
+      "id": "993603c0-18c9-4bfb-abd2-26d15713b2fd",
+      "name": "Hash UID",
+      "parameters": {
+        "dataPropertyName": "chunk_uid",
+        "value": "={{ $json.document_id }}|{{ $json.content_hash }}"
+      },
+      "position": [
+        -224,
+        96
+      ],
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 2
+    },
+    {
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "executeOnce": true,
+      "id": "969aa930-f1c5-4c48-a1cb-1bee6f704381",
+      "name": "Check Existing Hashes",
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        },
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "select",
+              "value": "chunk_uid"
+            },
+            {
+              "name": "chunk_uid",
+              "value": "=in.({{ $(\"Hash UID\").all().map(i => i.json.chunk_uid).join(\",\") }})"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "url": "={{ $(\"Config\").first().json.supabase_url }}/rest/v1/knowledge_chunks"
+      },
+      "position": [
+        0,
+        0
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4
+    },
+    {
+      "id": "b62e788d-96b7-4e67-ad71-3c27e7bf4337",
+      "name": "Filter New Chunks",
+      "parameters": {
+        "jsCode": "// Only embed chunks that changed / are new -> saves Gemini + re-index cost.\nconst existing = new Set();\nfor (const it of $('Check Existing Hashes').all()) {\n  const j = it.json || {};\n  if (j && j.chunk_uid) existing.add(j.chunk_uid);\n}\nconst out = [];\nfor (const it of $('Hash UID').all()) {\n  const j = it.json || {};\n  if (!j.chunk_uid) continue;\n  if (existing.has(j.chunk_uid)) continue;\n  out.push({ json: j });\n}\nreturn out;"
+      },
+      "position": [
+        224,
+        0
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "credentials": {
+        "googlePalmApi": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "6bd2bba5-33c7-4e56-8de9-73743a860164",
+      "name": "Embed Chunk",
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "jsonBody": "={\"model\":\"models/gemini-embedding-001\",\"content\":{\"parts\":[{\"text\": {{ JSON.stringify($json.text) }} }]},\"outputDimensionality\":1536}",
+        "method": "POST",
+        "nodeCredentialType": "googlePalmApi",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent"
+      },
+      "position": [
+        448,
+        0
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4
+    },
+    {
+      "id": "e588b870-1c56-4316-b8e1-1ad3d8a204a9",
+      "name": "Build Upsert Row",
+      "parameters": {
+        "jsCode": "// Assemble each row with REAL top-level columns AND a metadata jsonb mirror.\nconst items = $input.all();\nconst out = [];\nfor (let i = 0; i < items.length; i++) {\n  const emb = items[i].json || {};\n  let src = {};\n  try {\n    const m = $('Filter New Chunks').itemMatching(i);\n    if (m && m.json) src = m.json;\n  } catch (e) { /* pairing unavailable */ }\n\n  const values = (emb.embedding && Array.isArray(emb.embedding.values)) ? emb.embedding.values\n    : (Array.isArray(emb.values) ? emb.values : []);\n  const embeddingStr = '[' + values.join(',') + ']';\n\n  const meta = {\n    document_id: src.document_id,\n    title: src.title,\n    source_type: src.source_type,\n    source_url: src.source_url,\n    chunk_index: src.chunk_index,\n    chunk_count: src.chunk_count,\n    created_at: src.created_at,\n    pipeline_version: src.pipeline_version,\n    video_id: src.video_id,\n    start_time: src.start_time,\n    timestamp_url: src.timestamp_url,\n    content_hash: src.content_hash,\n  };\n\n  out.push({ json: {\n    chunk_uid: src.chunk_uid,\n    document_id: src.document_id,\n    title: src.title,\n    source_type: src.source_type,\n    source_url: src.source_url,\n    chunk_index: src.chunk_index,\n    chunk_count: src.chunk_count,\n    content: src.text,\n    content_hash: src.content_hash,\n    created_at: src.created_at,\n    pipeline_version: src.pipeline_version,\n    video_id: src.video_id,\n    start_time: src.start_time,\n    timestamp_url: src.timestamp_url,\n    embedding: embeddingStr,\n    metadata: meta,\n  } });\n}\nreturn out;"
+      },
+      "position": [
+        672,
+        0
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "credentials": {
+        "supabaseApi": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "c21098b6-9ee1-4683-908c-82df5eac864d",
+      "name": "Upsert Chunk",
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=minimal"
+            }
+          ]
+        },
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "method": "POST",
+        "nodeCredentialType": "supabaseApi",
+        "options": {},
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "url": "={{ $(\"Config\").first().json.supabase_url }}/rest/v1/knowledge_chunks?on_conflict=chunk_uid"
+      },
+      "position": [
+        896,
+        0
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4
+    },
+    {
+      "id": "cee632c8-0961-4e46-badd-77e3920db991",
+      "name": "Build Success Status",
+      "parameters": {
+        "jsCode": "// One status row per successfully-transcribed video.\nconst seen = {};\nconst out = [];\nconst now = new Date().toISOString();\nfor (const it of $('Parse Transcript').all()) {\n  const j = it.json || {};\n  if (j._row_status !== 'ok') continue;\n  const u = j.source_url || j.video_url;\n  if (!u || seen[u]) continue;\n  seen[u] = true;\n  out.push({ json: { ID: j.video_id, Source: u, title: j.title, status: 'processed', processed_at: now, chunk_count: j.chunk_count, error_message: '' } });\n}\nreturn out;"
+      },
+      "position": [
+        0,
+        192
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "36a5a85b-1de2-4720-b610-8e81969495c4",
+      "name": "Update Status (Success)",
+      "parameters": {
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "ID"
+          ],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "ID",
+              "id": "ID",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Status",
+              "id": "Status",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "processed_at",
+              "id": "processed_at",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "chunk_count",
+              "id": "chunk_count",
+              "required": false,
+              "type": "number"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "error_message",
+              "id": "error_message",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "ID": "={{ $json.ID }}",
+            "Status": "processed",
+            "chunk_count": "={{ $json.chunk_count }}",
+            "error_message": "",
+            "processed_at": "={{ $json.processed_at }}"
+          }
+        },
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "Media",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/17UrPIJhIH9kwTNhx5m4I0gsOTQ6uRB3-NGTeEJz4DR4/edit?usp=drivesdk",
+          "mode": "list",
+          "value": "17UrPIJhIH9kwTNhx5m4I0gsOTQ6uRB3-NGTeEJz4DR4"
+        },
+        "operation": "update",
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "cachedResultName": "Videos",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/17UrPIJhIH9kwTNhx5m4I0gsOTQ6uRB3-NGTeEJz4DR4/edit#gid=1082530094",
+          "mode": "list",
+          "value": 1082530094
+        }
+      },
+      "position": [
+        224,
+        192
+      ],
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7
+    },
+    {
+      "id": "7bd8b91e-1529-4888-837c-cefda45dff5d",
+      "name": "Build Error Status",
+      "parameters": {
+        "jsCode": "// One status row per failed video.\nconst seen = {};\nconst out = [];\nconst now = new Date().toISOString();\nfor (const it of $input.all()) {\n  const j = it.json || {};\n  const u = j.source_url || j.video_url || j.Source;\n  if (!u || seen[u]) continue;\n  seen[u] = true;\n  out.push({ json: { ID: j.video_id, Source: u, title: j.title || '', status: 'error', processed_at: now, error_message: j.error_message || 'Transcription failed' } });\n}\nreturn out;"
+      },
+      "position": [
+        -448,
+        288
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "e849c3b7-f260-4b8e-b9f9-6ac4a5f6a8f1",
+      "name": "Update Status (Error)",
+      "parameters": {
+        "columns": {
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false,
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "ID"
+          ],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "ID",
+              "id": "ID",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "Status",
+              "id": "Status",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "processed_at",
+              "id": "processed_at",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "chunk_count",
+              "id": "chunk_count",
+              "required": false,
+              "type": "number"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "error_message",
+              "id": "error_message",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "ID": "={{ $json.ID }}",
+            "Status": "error",
+            "chunk_count": 0,
+            "error_message": "={{ $json.error_message }}",
+            "processed_at": "={{ $json.processed_at }}"
+          }
+        },
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "Media",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/17UrPIJhIH9kwTNhx5m4I0gsOTQ6uRB3-NGTeEJz4DR4/edit?usp=drivesdk",
+          "mode": "list",
+          "value": "17UrPIJhIH9kwTNhx5m4I0gsOTQ6uRB3-NGTeEJz4DR4"
+        },
+        "operation": "update",
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "cachedResultName": "Videos",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/17UrPIJhIH9kwTNhx5m4I0gsOTQ6uRB3-NGTeEJz4DR4/edit#gid=1082530094",
+          "mode": "list",
+          "value": 1082530094
+        }
+      },
+      "position": [
+        -224,
+        288
+      ],
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7
+    },
+    {
+      "disabled": true,
+      "id": "5a04ce1c-a88a-40a7-8ef1-360a440c6c92",
+      "name": "Gemini Transcribe",
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "cachedResultName": "gemini-2.5-flash",
+          "mode": "list",
+          "value": "models/gemini-2.5-flash"
+        },
+        "operation": "analyze",
+        "options": {
+          "maxOutputTokens": 65536
+        },
+        "resource": "video",
+        "text": "Transcribe ONLY the spoken audio of this video. Return ONLY a JSON array of {\"text\",\"start\"} objects, or a line starting with \"TRANSCRIPTION_FAILED: \" if you cannot access the audio.",
+        "videoUrls": "={{ $json.ID ? 'https://www.youtube.com/watch?v=' + $json.ID : ($json.Source || $json.video_url || $json.url || $json.link) }}"
+      },
+      "position": [
+        -2016,
+        512
+      ],
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2
+    }
+  ],
+  "connections": {
+    "Build Error Status": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Update Status (Error)",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Build Success Status": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Update Status (Success)",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Build Upsert Row": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Upsert Chunk",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Check Existing Hashes": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Filter New Chunks",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Read Sheet Rows",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Embed Chunk": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Build Upsert Row",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Filter NEW Only": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Supadata Transcript",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Filter New Chunks": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Embed Chunk",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Hash Content": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Hash UID",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Hash UID": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Check Existing Hashes",
+            "type": "main"
+          },
+          {
+            "index": 0,
+            "node": "Build Success Status",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Parse Transcript": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Transcribed OK?",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Read Sheet Rows": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Filter NEW Only",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Start": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Config",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Supadata Transcript": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Parse Transcript",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Transcribed OK?": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Hash Content",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Build Error Status",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "v0hnP0nFMXxgbKlb",
+    "executionOrder": "v1",
+    "timeSavedMode": "fixed"
+  },
+  "tags": [],
+  "nodeGroups": [],
+  "id": "TW6ld7baAZNSmP4v",
+  "versionId": "508facf1-1635-42c2-ad1b-b93035a3697a",
+  "createdAt": "2026-07-19T07:47:12.942Z",
+  "updatedAt": "2026-07-26T00:35:28.940Z",
+  "parentFolderId": null,
+  "_backup": {
+    "sourceProjectId": "fTE250SCnzLLnqUC",
+    "sourceProjectName": "SuperChoiceAI",
+    "sourceProjectType": "team",
+    "sourceFolder": "_root",
+    "credentialValuesIncluded": false,
+    "credentialsRequireManualRebind": true
+  }
+}

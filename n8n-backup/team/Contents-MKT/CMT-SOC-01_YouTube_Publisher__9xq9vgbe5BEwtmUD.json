@@ -1,0 +1,350 @@
+{
+  "name": "CMT-SOC-01 YouTube Publisher",
+  "nodes": [
+    {
+      "id": "419772e8-74df-4b5b-ae93-06c446b77481",
+      "name": "Called by CMT-01 Orchestrator",
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "position": [
+        0,
+        192
+      ],
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "6a38d085-21f8-4308-ad49-49bce407a154",
+      "name": "Normalize Input",
+      "parameters": {
+        "jsCode": "const x = $json || {};\nconst channel = x.channel || x.platform || (x.channels && x.channels.youtube === true ? 'youtube' : '');\nconst approved = x.approved === true;\nconst dry_run = x.dry_run !== false;\nconst matches = channel === 'youtube';\nreturn [{ json: { ...x, channel, approved, dry_run, channel_matches: matches } }];"
+      },
+      "position": [
+        224,
+        192
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "8dbf4846-ffb2-44bc-8ea5-9bef4404db8a",
+      "name": "Safety Gate",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "approved",
+              "leftValue": "={{ $json.approved }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            },
+            {
+              "id": "not-dry-run",
+              "leftValue": "={{ $json.dry_run }}",
+              "operator": {
+                "operation": "false",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": false
+            },
+            {
+              "id": "platform-is-youtube",
+              "leftValue": "={{ $json.channel_matches }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        }
+      },
+      "position": [
+        448,
+        192
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3
+    },
+    {
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "45dd45f1-25d3-4af3-ac65-ffaadffc59ee",
+      "name": "Upload a video",
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "binaryProperty": "data",
+        "operation": "upload",
+        "options": {
+          "privacyStatus": "private"
+        },
+        "resource": "video",
+        "title": "={{ $json.title || $json.caption || 'Untitled' }}"
+      },
+      "position": [
+        672,
+        96
+      ],
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1
+    },
+    {
+      "id": "943be49c-696d-4874-9981-cd43e1cfcd6b",
+      "name": "Success Output",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "status",
+              "name": "status",
+              "type": "string",
+              "value": "success"
+            },
+            {
+              "id": "published",
+              "name": "published",
+              "type": "boolean",
+              "value": true
+            },
+            {
+              "id": "platform",
+              "name": "platform",
+              "type": "string",
+              "value": "youtube"
+            },
+            {
+              "id": "video_id",
+              "name": "video_id",
+              "type": "string",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "id": "privacy_status",
+              "name": "privacy_status",
+              "type": "string",
+              "value": "private"
+            },
+            {
+              "id": "title",
+              "name": "title",
+              "type": "string",
+              "value": "={{ $('Called by CMT-01 Orchestrator').item.json.title || $('Called by CMT-01 Orchestrator').item.json.caption || 'Untitled' }}"
+            },
+            {
+              "id": "response",
+              "name": "response",
+              "type": "object",
+              "value": "={{ $json }}"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "mode": "manual",
+        "options": {}
+      },
+      "position": [
+        896,
+        0
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5
+    },
+    {
+      "id": "b75e324f-80ea-4fba-a699-ded65b0187da",
+      "name": "Error Output",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "status",
+              "name": "status",
+              "type": "string",
+              "value": "error"
+            },
+            {
+              "id": "published",
+              "name": "published",
+              "type": "boolean",
+              "value": false
+            },
+            {
+              "id": "platform",
+              "name": "platform",
+              "type": "string",
+              "value": "youtube"
+            },
+            {
+              "id": "error_message",
+              "name": "error_message",
+              "type": "string",
+              "value": "YouTube upload request failed"
+            },
+            {
+              "id": "error",
+              "name": "error",
+              "type": "object",
+              "value": "={{ $json }}"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "mode": "manual",
+        "options": {}
+      },
+      "position": [
+        896,
+        192
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5
+    },
+    {
+      "id": "27da37fc-7faa-45ba-9424-96e74fd94c15",
+      "name": "Skipped Output",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "status",
+              "name": "status",
+              "type": "string",
+              "value": "skipped"
+            },
+            {
+              "id": "published",
+              "name": "published",
+              "type": "boolean",
+              "value": false
+            },
+            {
+              "id": "platform",
+              "name": "platform",
+              "type": "string",
+              "value": "youtube"
+            },
+            {
+              "id": "reason",
+              "name": "reason",
+              "type": "string",
+              "value": "={{ $json.approved !== true ? 'not approved' : ($json.dry_run === true ? 'dry_run enabled' : 'platform is not youtube') }}"
+            },
+            {
+              "id": "message",
+              "name": "message",
+              "type": "string",
+              "value": "Upload skipped by safety gate; YouTube was not called."
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "mode": "manual",
+        "options": {}
+      },
+      "position": [
+        672,
+        288
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5
+    }
+  ],
+  "connections": {
+    "Called by CMT-01 Orchestrator": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Normalize Input",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Normalize Input": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Safety Gate",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Safety Gate": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Upload a video",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Skipped Output",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Upload a video": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Success Output",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Error Output",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "nodeGroups": [],
+  "id": "9xq9vgbe5BEwtmUD",
+  "versionId": "ca59591e-dd4f-4907-8f06-6a14d16128a5",
+  "createdAt": "2026-08-02T17:29:32.271Z",
+  "updatedAt": "2026-08-07T18:10:30.226Z",
+  "parentFolderId": "BgEM2QOTFsbe02On",
+  "_backup": {
+    "sourceProjectId": "fTE250SCnzLLnqUC",
+    "sourceProjectName": "SuperChoiceAI",
+    "sourceProjectType": "team",
+    "sourceFolder": "Contents-MKT",
+    "credentialValuesIncluded": false,
+    "credentialsRequireManualRebind": true
+  }
+}

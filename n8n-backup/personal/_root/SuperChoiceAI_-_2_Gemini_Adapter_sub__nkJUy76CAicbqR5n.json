@@ -1,0 +1,309 @@
+{
+  "name": "SuperChoiceAI - 2) Gemini Adapter (sub)",
+  "nodes": [
+    {
+      "id": "d662faf4-dbec-4e34-accc-d57912592ecf",
+      "name": "When Called",
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "action"
+            },
+            {
+              "name": "api_key"
+            },
+            {
+              "name": "model"
+            },
+            {
+              "name": "service_type"
+            }
+          ]
+        }
+      },
+      "position": [
+        0,
+        288
+      ],
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2
+    },
+    {
+      "id": "fb60a9c8-e03b-427b-bcac-da53f3cac3e5",
+      "name": "Route by Action",
+      "parameters": {
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "unknown"
+        },
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "52647271-2311-46b0-8be2-17c0a5042ea6",
+                    "leftValue": "={{ $json.action }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "validate_key"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                }
+              },
+              "outputKey": "validate_key",
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "ab496f3e-0172-4c2e-9068-34fb417050a4",
+                    "leftValue": "={{ $json.action }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "probe_usage"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                }
+              },
+              "outputKey": "probe_usage",
+              "renameOutput": true
+            }
+          ]
+        }
+      },
+      "position": [
+        224,
+        272
+      ],
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4
+    },
+    {
+      "id": "dba1e679-3c8f-4d76-beaa-61c14d5ecdd6",
+      "name": "Has API Key?",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "k",
+              "leftValue": "={{ $json.api_key }}",
+              "operator": {
+                "operation": "notEmpty",
+                "type": "string"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        448,
+        96
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "id": "9c6f6491-5eb2-4489-90e8-712305595abf",
+      "name": "Gemini List Models",
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-goog-api-key",
+              "value": "={{ $json.api_key }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        },
+        "sendHeaders": true,
+        "url": "https://generativelanguage.googleapis.com/v1beta/models"
+      },
+      "position": [
+        672,
+        0
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4
+    },
+    {
+      "id": "4331873a-f3d4-4a33-880d-04e356d2ed4d",
+      "name": "Normalize Validate",
+      "parameters": {
+        "jsCode": "const item = $input.first().json || {};\nconst status = item.statusCode;\nconst body = item.body || item || {};\nif (typeof status === 'number' && status >= 200 && status < 300) {\n  const models = Array.isArray(body.models) ? body.models.map(m => m.name || m.displayName).filter(Boolean) : [];\n  return [{ json: { provider: 'gemini', valid: true, models } }];\n}\nconst err = (body && body.error && body.error.message) ? body.error.message : ('HTTP ' + (status ?? 'error'));\nreturn [{ json: { provider: 'gemini', valid: false, error: err } }];"
+      },
+      "position": [
+        896,
+        0
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "8a2aeb3e-d4fa-4870-be25-1e775eba59a9",
+      "name": "Missing API Key",
+      "parameters": {
+        "jsonOutput": "{\"provider\":\"gemini\",\"valid\":false,\"error\":\"missing api_key\"}",
+        "mode": "raw",
+        "options": {}
+      },
+      "position": [
+        672,
+        192
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4
+    },
+    {
+      "id": "161608e8-60b8-4391-bfc0-cd39d80695e4",
+      "name": "Probe Usage",
+      "parameters": {
+        "jsCode": "const input = $input.first().json || {};\nconst headers = input.ratelimit_headers || input.headers || null;\nreturn [{ json: {\n  provider: 'gemini',\n  supported: false,\n  note: 'Gemini has no quota-remaining endpoint; usage is self-counted',\n  headers: headers || null\n} }];"
+      },
+      "position": [
+        448,
+        288
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "27641798-3bdf-4236-912b-fecc9432d0cd",
+      "name": "Unknown Action",
+      "parameters": {
+        "jsonOutput": "{\"provider\":\"gemini\",\"error\":\"unknown action\"}",
+        "mode": "raw",
+        "options": {}
+      },
+      "position": [
+        448,
+        480
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4
+    }
+  ],
+  "connections": {
+    "Gemini List Models": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Normalize Validate",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Has API Key?": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Gemini List Models",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Missing API Key",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Route by Action": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Has API Key?",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Probe Usage",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Unknown Action",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "When Called": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Route by Action",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "nodeGroups": [],
+  "id": "nkJUy76CAicbqR5n",
+  "versionId": "e23192fb-89a5-4ca7-b895-8c3fa3356f42",
+  "createdAt": "2026-07-19T06:00:21.017Z",
+  "updatedAt": "2026-07-27T23:43:02.424Z",
+  "parentFolderId": null,
+  "_backup": {
+    "sourceProjectId": "bqGCRU7A2RlF5p6C",
+    "sourceProjectName": "SuperChoice   <superchoice@hotmail.com>",
+    "sourceProjectType": "personal",
+    "sourceFolder": "_root",
+    "credentialValuesIncluded": false,
+    "credentialsRequireManualRebind": true
+  }
+}

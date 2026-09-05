@@ -1,0 +1,396 @@
+{
+  "name": "CMT-SOC-04 Threads Publisher",
+  "nodes": [
+    {
+      "id": "36234b2c-300b-471d-a8b3-bd81a3025ec6",
+      "name": "When Executed by Another Workflow",
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "position": [
+        0,
+        224
+      ],
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "394db1e4-ef34-4095-a378-27eb9162e757",
+      "name": "Safety Gate",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "approved",
+              "leftValue": "={{ $json.approved }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            },
+            {
+              "id": "not-dry-run",
+              "leftValue": "={{ $json.dry_run }}",
+              "operator": {
+                "operation": "false",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": false
+            },
+            {
+              "id": "platform-is-threads",
+              "leftValue": "={{ ($json.channel || $json.platform) === 'threads' }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        }
+      },
+      "position": [
+        224,
+        224
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3
+    },
+    {
+      "credentials": {
+        "oAuth2Api": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "e58f377b-6e96-4260-bfa8-444806d7d4bb",
+      "name": "Create Threads Container",
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "media_type",
+              "value": "={{ $json.media_url ? ($json.media_type === 'video' ? 'VIDEO' : 'IMAGE') : 'TEXT' }}"
+            },
+            {
+              "name": "image_url",
+              "value": "={{ $json.media_url && $json.media_type !== 'video' ? $json.media_url : '' }}"
+            },
+            {
+              "name": "video_url",
+              "value": "={{ $json.media_url && $json.media_type === 'video' ? $json.media_url : '' }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.caption || $json.description || $json.text || '' }}"
+            }
+          ]
+        },
+        "genericAuthType": "oAuth2Api",
+        "method": "POST",
+        "options": {},
+        "sendBody": true,
+        "url": "https://graph.threads.net/v1.0/me/threads"
+      },
+      "position": [
+        448,
+        128
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4
+    },
+    {
+      "credentials": {
+        "oAuth2Api": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "34ce1f7d-0616-44fb-9602-42174643ea9c",
+      "name": "Publish Threads",
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "creation_id",
+              "value": "={{ $json.id }}"
+            }
+          ]
+        },
+        "genericAuthType": "oAuth2Api",
+        "method": "POST",
+        "options": {},
+        "sendBody": true,
+        "url": "https://graph.threads.net/v1.0/me/threads_publish"
+      },
+      "position": [
+        672,
+        48
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4
+    },
+    {
+      "id": "f2b4550a-2028-4803-8c59-1466cba26010",
+      "name": "Success Output",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "status",
+              "name": "status",
+              "type": "string",
+              "value": "success"
+            },
+            {
+              "id": "published",
+              "name": "published",
+              "type": "boolean",
+              "value": true
+            },
+            {
+              "id": "platform",
+              "name": "platform",
+              "type": "string",
+              "value": "threads"
+            },
+            {
+              "id": "post_id",
+              "name": "post_id",
+              "type": "string",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "id": "container_id",
+              "name": "container_id",
+              "type": "string",
+              "value": "={{ $('Create Threads Container').item.json.id }}"
+            },
+            {
+              "id": "text",
+              "name": "text",
+              "type": "string",
+              "value": "={{ $('When Executed by Another Workflow').item.json.caption || $('When Executed by Another Workflow').item.json.description || $('When Executed by Another Workflow').item.json.text || '' }}"
+            },
+            {
+              "id": "response",
+              "name": "response",
+              "type": "object",
+              "value": "={{ $json }}"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "mode": "manual",
+        "options": {}
+      },
+      "position": [
+        896,
+        0
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5
+    },
+    {
+      "id": "9011f640-2aa7-496f-b20c-eb53cb18a034",
+      "name": "Error Output",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "status",
+              "name": "status",
+              "type": "string",
+              "value": "error"
+            },
+            {
+              "id": "published",
+              "name": "published",
+              "type": "boolean",
+              "value": false
+            },
+            {
+              "id": "platform",
+              "name": "platform",
+              "type": "string",
+              "value": "threads"
+            },
+            {
+              "id": "error_message",
+              "name": "error_message",
+              "type": "string",
+              "value": "Threads publish request failed"
+            },
+            {
+              "id": "error",
+              "name": "error",
+              "type": "object",
+              "value": "={{ $json }}"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "mode": "manual",
+        "options": {}
+      },
+      "position": [
+        896,
+        224
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5
+    },
+    {
+      "id": "bf1d3386-8ae8-4038-9d8d-89235dda3895",
+      "name": "Skipped Output",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "status",
+              "name": "status",
+              "type": "string",
+              "value": "skipped"
+            },
+            {
+              "id": "published",
+              "name": "published",
+              "type": "boolean",
+              "value": false
+            },
+            {
+              "id": "platform",
+              "name": "platform",
+              "type": "string",
+              "value": "threads"
+            },
+            {
+              "id": "reason",
+              "name": "reason",
+              "type": "string",
+              "value": "={{ $json.approved !== true ? 'not approved' : ($json.dry_run === true ? 'dry_run enabled' : 'platform is not threads') }}"
+            },
+            {
+              "id": "message",
+              "name": "message",
+              "type": "string",
+              "value": "Post skipped by safety gate; Threads was not called."
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "mode": "manual",
+        "options": {}
+      },
+      "position": [
+        448,
+        320
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5
+    }
+  ],
+  "connections": {
+    "Create Threads Container": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Publish Threads",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Error Output",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Publish Threads": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Success Output",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Error Output",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Safety Gate": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Create Threads Container",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Skipped Output",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Safety Gate",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "nodeGroups": [],
+  "id": "LJS12aoqHo6knXg8",
+  "versionId": "12eb54ab-054f-44f3-8483-9b448b2dadfb",
+  "createdAt": "2026-08-02T17:30:55.850Z",
+  "updatedAt": "2026-08-07T18:10:30.226Z",
+  "parentFolderId": "BgEM2QOTFsbe02On",
+  "_backup": {
+    "sourceProjectId": "fTE250SCnzLLnqUC",
+    "sourceProjectName": "SuperChoiceAI",
+    "sourceProjectType": "team",
+    "sourceFolder": "Contents-MKT",
+    "credentialValuesIncluded": false,
+    "credentialsRequireManualRebind": true
+  }
+}

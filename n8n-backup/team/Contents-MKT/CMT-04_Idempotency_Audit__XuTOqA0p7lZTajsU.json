@@ -1,0 +1,163 @@
+{
+  "name": "CMT-04 Idempotency & Audit",
+  "nodes": [
+    {
+      "id": "1dbf9285-00a6-4874-b7cd-ed0bad313f9d",
+      "name": "Gate Released Input",
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "position": [
+        -720,
+        96
+      ],
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "b22c17dd-4d68-4a89-b9f9-e6b7a727b994",
+      "name": "Build Idempotency Key",
+      "parameters": {
+        "jsCode": "// Version note: publishable dependency for CMT-01; logic unchanged.\nconst x=$json||{}; const channelKeys=Object.entries(x.channels||{}).filter(([,v])=>v===true||v==='Y').map(([k])=>k).sort(); const raw=[x.content_id,x.revision||1,x.mode,...channelKeys].join('|'); let h=2166136261; for(const c of raw){h^=c.charCodeAt(0);h=Math.imul(h,16777619)} const key='cmt_'+(h>>>0).toString(16); return [{json:{...x,idempotency_key:key,selected_channels:channelKeys,audit:{event:'READY_FOR_DISPATCH',content_id:x.content_id,key,secret_fields_removed:true,created_at:new Date().toISOString()}}}];"
+      },
+      "position": [
+        -496,
+        96
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "3ed3c9e3-b869-4dd9-aa0f-f7492f5052a3",
+      "name": "Any Channel Selected?",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{$json.selected_channels.length}}",
+              "operator": {
+                "operation": "gt",
+                "type": "number"
+              },
+              "rightValue": 0
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        -272,
+        96
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "id": "20ddc7a6-99b5-45fc-a95f-260d41dac291",
+      "name": "Dispatch Ready",
+      "parameters": {
+        "jsCode": "return $input.all().map(i=>({json:{...i.json,status:'DISPATCH_READY',next:'CMT-01 Multi-Channel Publishing Orchestrator'}}));"
+      },
+      "position": [
+        -48,
+        0
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "88208671-6cdd-4144-b2b0-416adc69df7b",
+      "name": "Skip Dispatch",
+      "parameters": {
+        "jsCode": "return $input.all().map(i=>({json:{content_id:i.json.content_id||null,status:'NO_CHANNEL_SELECTED',idempotency_key:i.json.idempotency_key,audit_safe:true}}));"
+      },
+      "position": [
+        -48,
+        192
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "11651687-4918-4612-88c0-a82b434dee77",
+      "name": "Sticky Note",
+      "parameters": {},
+      "position": [
+        -352,
+        96
+      ],
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "Any Channel Selected?": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Dispatch Ready",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Skip Dispatch",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Build Idempotency Key": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Any Channel Selected?",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Gate Released Input": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Build Idempotency Key",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "nodeGroups": [],
+  "id": "XuTOqA0p7lZTajsU",
+  "versionId": "d48568e4-95b1-43fd-9f4b-e66077d4dc1c",
+  "createdAt": "2026-08-03T15:25:36.306Z",
+  "updatedAt": "2026-08-08T16:21:59.302Z",
+  "parentFolderId": "BgEM2QOTFsbe02On",
+  "_backup": {
+    "sourceProjectId": "fTE250SCnzLLnqUC",
+    "sourceProjectName": "SuperChoiceAI",
+    "sourceProjectType": "team",
+    "sourceFolder": "Contents-MKT",
+    "credentialValuesIncluded": false,
+    "credentialsRequireManualRebind": true
+  }
+}

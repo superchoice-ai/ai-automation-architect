@@ -1,0 +1,151 @@
+{
+  "name": "CMT-00 Content Intake & Contract",
+  "nodes": [
+    {
+      "id": "6db8a622-41ec-487a-9705-7d87e0aa6afd",
+      "name": "Orchestrator Input",
+      "parameters": {},
+      "position": [
+        -720,
+        112
+      ],
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "792f9e92-cbc8-4e8a-8140-c6dfb9c6d8f2",
+      "name": "Normalize Content Contract",
+      "parameters": {
+        "jsCode": "const x=$json||{}; const allowed=['READY_MEDIA','TREND_TO_CONTENT']; const channels=x.channels||{}; const errors=[]; if(!x.content_id) errors.push('content_id_required'); if(!allowed.includes(x.mode)) errors.push('invalid_mode'); if(typeof x.dry_run!=='boolean') errors.push('dry_run_boolean_required'); return [{json:{...x,contract_version:'CMT-1.0',channels,valid:errors.length===0,errors,received_at:new Date().toISOString()}}];"
+      },
+      "position": [
+        -480,
+        112
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "ff504181-3730-4ed5-98f7-89da76b4d018",
+      "name": "Contract Valid?",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{$json.valid}}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        -240,
+        112
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "id": "373b9d36-3583-4ffc-8f91-c78509d6307a",
+      "name": "Accept Intake",
+      "parameters": {
+        "jsCode": "return $input.all().map(i=>({json:{...i.json,status:'INTAKE_ACCEPTED',next:'CMT-02 Media Validation'}}));"
+      },
+      "position": [
+        0,
+        0
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "f2a638e4-2370-4904-b733-4afcc2c99b45",
+      "name": "Reject Safely",
+      "parameters": {
+        "jsCode": "return $input.all().map(i=>({json:{content_id:i.json.content_id||null,status:'CONTRACT_REJECTED',errors:i.json.errors,audit_safe:true}}));"
+      },
+      "position": [
+        0,
+        208
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    }
+  ],
+  "connections": {
+    "Contract Valid?": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Accept Intake",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Reject Safely",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Normalize Content Contract": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Contract Valid?",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Orchestrator Input": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Normalize Content Contract",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "nodeGroups": [],
+  "id": "ypyEW16Kx1tO0zUW",
+  "versionId": "42e6da14-5361-4ca2-8203-d3912bc85cb8",
+  "createdAt": "2026-08-03T15:23:34.230Z",
+  "updatedAt": "2026-08-07T18:10:30.226Z",
+  "parentFolderId": "BgEM2QOTFsbe02On",
+  "_backup": {
+    "sourceProjectId": "fTE250SCnzLLnqUC",
+    "sourceProjectName": "SuperChoiceAI",
+    "sourceProjectType": "team",
+    "sourceFolder": "Contents-MKT",
+    "credentialValuesIncluded": false,
+    "credentialsRequireManualRebind": true
+  }
+}

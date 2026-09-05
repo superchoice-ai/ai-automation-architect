@@ -1,0 +1,979 @@
+{
+  "summary": {
+    "snapshotAtAsiaBangkok": "2026-09-05, 20:02:14 ICT",
+    "sourceInstance": "https://superchoiceai.app.n8n.cloud",
+    "repository": "superchoice-ai/ai-automation-architect",
+    "branch": "backup/n8n-20260905",
+    "baseCommit": "6112c3aaf3f4ebdf52c4fabae36d6dfd65bf1d45",
+    "totalWorkflows": 58,
+    "fullSanitized": 31,
+    "metadataOnlyBlocked": 27,
+    "teamTotal": 51,
+    "personalTotal": 7,
+    "activeVersionSnapshots": 1,
+    "credentialBindingsRedacted": 62,
+    "secretValuesIncluded": false
+  },
+  "projects": [
+    {
+      "id": "fTE250SCnzLLnqUC",
+      "name": "SuperChoiceAI",
+      "type": "team"
+    },
+    {
+      "id": "bqGCRU7A2RlF5p6C",
+      "name": "SuperChoice   <superchoice@hotmail.com>",
+      "type": "personal"
+    }
+  ],
+  "folders": {
+    "bqGCRU7A2RlF5p6C": [],
+    "fTE250SCnzLLnqUC": [
+      {
+        "id": "BgEM2QOTFsbe02On",
+        "name": "Contents-MKT",
+        "parentFolderId": null,
+        "path": [
+          "Contents-MKT"
+        ]
+      },
+      {
+        "id": "yGWue6djkmZiBm31",
+        "name": "ai-automation-architect",
+        "parentFolderId": null,
+        "path": [
+          "ai-automation-architect"
+        ]
+      },
+      {
+        "id": "9M2JFsRO2bL9M2p1",
+        "name": "SuperChoice MCP",
+        "parentFolderId": null,
+        "path": [
+          "SuperChoice MCP"
+        ]
+      }
+    ]
+  },
+  "workflows": [
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "_root",
+      "workflowId": "4kGrZBFV4lYqbFrs",
+      "name": "02_Document_Pipeline",
+      "active": false,
+      "availableInMCP": true,
+      "updatedAt": "2026-07-26T10:36:28.342Z",
+      "backupStatus": "full-sanitized",
+      "path": "n8n-backup/team/_root/02_Document_Pipeline__4kGrZBFV4lYqbFrs.json",
+      "references": [
+        "v0hnP0nFMXxgbKlb"
+      ]
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "_root",
+      "workflowId": "TW6ld7baAZNSmP4v",
+      "name": "03_YouTube_Pipeline",
+      "active": false,
+      "availableInMCP": true,
+      "updatedAt": "2026-07-26T00:35:28.940Z",
+      "backupStatus": "full-sanitized",
+      "path": "n8n-backup/team/_root/03_YouTube_Pipeline__TW6ld7baAZNSmP4v.json",
+      "references": [
+        "v0hnP0nFMXxgbKlb"
+      ]
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "_root",
+      "workflowId": "IfWBPDcLz7adFXgg",
+      "name": "04_RAG_Chat",
+      "active": true,
+      "availableInMCP": true,
+      "updatedAt": "2026-07-26T10:35:50.680Z",
+      "backupStatus": "full-sanitized",
+      "path": "n8n-backup/team/_root/04_RAG_Chat__IfWBPDcLz7adFXgg.json",
+      "references": [
+        "v0hnP0nFMXxgbKlb"
+      ]
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "_root",
+      "workflowId": "v0hnP0nFMXxgbKlb",
+      "name": "05_Error_Logs",
+      "active": true,
+      "availableInMCP": true,
+      "updatedAt": "2026-07-26T10:37:03.814Z",
+      "backupStatus": "full-sanitized",
+      "path": "n8n-backup/team/_root/05_Error_Logs__v0hnP0nFMXxgbKlb.json",
+      "references": []
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "_root",
+      "workflowId": "EyVKS07eluefcAkA",
+      "name": "06_Daily_Backup",
+      "active": true,
+      "availableInMCP": true,
+      "updatedAt": "2026-07-26T06:24:19.712Z",
+      "backupStatus": "full-sanitized",
+      "path": "n8n-backup/team/_root/06_Daily_Backup__EyVKS07eluefcAkA.json",
+      "references": [
+        "cQXq4qgAo5NRS8xH"
+      ]
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "_root",
+      "workflowId": "cQXq4qgAo5NRS8xH",
+      "name": "06b_Backup_Error_Alert",
+      "active": true,
+      "availableInMCP": true,
+      "updatedAt": "2026-07-26T06:24:23.124Z",
+      "backupStatus": "full-sanitized",
+      "path": "n8n-backup/team/_root/06b_Backup_Error_Alert__cQXq4qgAo5NRS8xH.json",
+      "references": []
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "_root",
+      "workflowId": "ozjlX670DCIpTtHi",
+      "name": "08_FAQ_Maintenance",
+      "active": true,
+      "availableInMCP": true,
+      "updatedAt": "2026-07-26T06:24:26.167Z",
+      "backupStatus": "full-sanitized",
+      "path": "n8n-backup/team/_root/08_FAQ_Maintenance__ozjlX670DCIpTtHi.json",
+      "references": [
+        "v0hnP0nFMXxgbKlb"
+      ]
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "_root",
+      "workflowId": "47sdmUuj5dvdav1g",
+      "name": "Chatbot Config MCP Server",
+      "active": true,
+      "availableInMCP": true,
+      "updatedAt": "2026-07-26T10:37:41.497Z",
+      "backupStatus": "full-sanitized",
+      "path": "n8n-backup/team/_root/Chatbot_Config_MCP_Server__47sdmUuj5dvdav1g.json",
+      "references": []
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "Contents-MKT",
+      "workflowId": "ypyEW16Kx1tO0zUW",
+      "name": "CMT-00 Content Intake & Contract",
+      "active": false,
+      "availableInMCP": true,
+      "updatedAt": "2026-08-07T18:10:30.226Z",
+      "backupStatus": "full-sanitized",
+      "path": "n8n-backup/team/Contents-MKT/CMT-00_Content_Intake_Contract__ypyEW16Kx1tO0zUW.json",
+      "references": []
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "_root",
+      "workflowId": "LdRoBnu4QX9Y9bWQ",
+      "name": "CMT-01 Multi-Channel Publisher",
+      "active": false,
+      "availableInMCP": false,
+      "updatedAt": "2026-08-31T15:56:50.772Z",
+      "backupStatus": "metadata-only-blocked",
+      "path": null,
+      "references": [],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "Contents-MKT",
+      "workflowId": "x3oJTlXR3gXNBM5K",
+      "name": "CMT-01 Multi-Channel Publishing Orchestrator",
+      "active": true,
+      "availableInMCP": true,
+      "updatedAt": "2026-08-08T15:48:32.535Z",
+      "backupStatus": "full-sanitized",
+      "path": "n8n-backup/team/Contents-MKT/CMT-01_Multi-Channel_Publishing_Orchestrator__x3oJTlXR3gXNBM5K.json",
+      "references": [
+        "9xq9vgbe5BEwtmUD",
+        "XuTOqA0p7lZTajsU",
+        "3NlGX9h0lHg4MHPb",
+        "EP5wKvWEPqKIIlfK",
+        "x9BVXvaNPzUEEdu0",
+        "LJS12aoqHo6knXg8",
+        "R6Tuk4V4xTw4dmyb",
+        "acqCJRuh23LwgI0J",
+        "erUt41gBKrSrPcje"
+      ]
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "Contents-MKT",
+      "workflowId": "KG1ELbbz9HVJIUgC",
+      "name": "CMT-02 Media Validation",
+      "active": false,
+      "availableInMCP": true,
+      "updatedAt": "2026-08-07T18:10:30.226Z",
+      "backupStatus": "full-sanitized",
+      "path": "n8n-backup/team/Contents-MKT/CMT-02_Media_Validation__KG1ELbbz9HVJIUgC.json",
+      "references": []
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "Contents-MKT",
+      "workflowId": "lqUhiLZNiYs5OkTL",
+      "name": "CMT-03 Approval & Scheduling Gate",
+      "active": false,
+      "availableInMCP": true,
+      "updatedAt": "2026-08-07T18:10:30.226Z",
+      "backupStatus": "full-sanitized",
+      "path": "n8n-backup/team/Contents-MKT/CMT-03_Approval_Scheduling_Gate__lqUhiLZNiYs5OkTL.json",
+      "references": []
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "Contents-MKT",
+      "workflowId": "XuTOqA0p7lZTajsU",
+      "name": "CMT-04 Idempotency & Audit",
+      "active": true,
+      "availableInMCP": true,
+      "updatedAt": "2026-08-08T16:21:59.302Z",
+      "backupStatus": "full-sanitized",
+      "path": "n8n-backup/team/Contents-MKT/CMT-04_Idempotency_Audit__XuTOqA0p7lZTajsU.json",
+      "references": []
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "Contents-MKT",
+      "workflowId": "3NlGX9h0lHg4MHPb",
+      "name": "CMT-05 Retry & Admin Escalation",
+      "active": true,
+      "availableInMCP": true,
+      "updatedAt": "2026-08-08T16:23:16.993Z",
+      "backupStatus": "full-sanitized",
+      "path": "n8n-backup/team/Contents-MKT/CMT-05_Retry_Admin_Escalation__3NlGX9h0lHg4MHPb.json",
+      "references": []
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "Contents-MKT",
+      "workflowId": "FtyY5iWh8JNoOMsr",
+      "name": "CMT-06 TREND_TO_CONTENT Generator",
+      "active": false,
+      "availableInMCP": true,
+      "updatedAt": "2026-08-07T18:10:30.226Z",
+      "backupStatus": "full-sanitized",
+      "path": "n8n-backup/team/Contents-MKT/CMT-06_TREND_TO_CONTENT_Generator__FtyY5iWh8JNoOMsr.json",
+      "references": []
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "Contents-MKT",
+      "workflowId": "9xq9vgbe5BEwtmUD",
+      "name": "CMT-SOC-01 YouTube Publisher",
+      "active": true,
+      "availableInMCP": true,
+      "updatedAt": "2026-08-07T18:10:30.226Z",
+      "backupStatus": "full-sanitized",
+      "path": "n8n-backup/team/Contents-MKT/CMT-SOC-01_YouTube_Publisher__9xq9vgbe5BEwtmUD.json",
+      "references": []
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "Contents-MKT",
+      "workflowId": "EP5wKvWEPqKIIlfK",
+      "name": "CMT-SOC-02 Facebook Page Publisher",
+      "active": true,
+      "availableInMCP": true,
+      "updatedAt": "2026-08-07T18:10:30.226Z",
+      "backupStatus": "full-sanitized",
+      "path": "n8n-backup/team/Contents-MKT/CMT-SOC-02_Facebook_Page_Publisher__EP5wKvWEPqKIIlfK.json",
+      "references": []
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "Contents-MKT",
+      "workflowId": "x9BVXvaNPzUEEdu0",
+      "name": "CMT-SOC-03 Instagram Publisher",
+      "active": true,
+      "availableInMCP": true,
+      "updatedAt": "2026-08-07T18:10:30.226Z",
+      "backupStatus": "full-sanitized",
+      "path": "n8n-backup/team/Contents-MKT/CMT-SOC-03_Instagram_Publisher__x9BVXvaNPzUEEdu0.json",
+      "references": []
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "Contents-MKT",
+      "workflowId": "LJS12aoqHo6knXg8",
+      "name": "CMT-SOC-04 Threads Publisher",
+      "active": true,
+      "availableInMCP": true,
+      "updatedAt": "2026-08-07T18:10:30.226Z",
+      "backupStatus": "full-sanitized",
+      "path": "n8n-backup/team/Contents-MKT/CMT-SOC-04_Threads_Publisher__LJS12aoqHo6knXg8.json",
+      "references": []
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "Contents-MKT",
+      "workflowId": "URuiZFY3MVoOtvaR",
+      "name": "CMT-SOC-05 TikTok Publisher",
+      "active": false,
+      "availableInMCP": true,
+      "updatedAt": "2026-08-07T18:10:30.226Z",
+      "backupStatus": "full-sanitized",
+      "path": "n8n-backup/team/Contents-MKT/CMT-SOC-05_TikTok_Publisher__URuiZFY3MVoOtvaR.json",
+      "references": []
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "Contents-MKT",
+      "workflowId": "acqCJRuh23LwgI0J",
+      "name": "CMT-SOC-06 LINE OA Publisher",
+      "active": true,
+      "availableInMCP": true,
+      "updatedAt": "2026-08-07T18:10:30.226Z",
+      "backupStatus": "full-sanitized",
+      "path": "n8n-backup/team/Contents-MKT/CMT-SOC-06_LINE_OA_Publisher__acqCJRuh23LwgI0J.json",
+      "references": []
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "Contents-MKT",
+      "workflowId": "v57MIomgxB1RMhJ3",
+      "name": "CMT-SOC-07 Pinterest Publisher",
+      "active": false,
+      "availableInMCP": true,
+      "updatedAt": "2026-08-07T18:10:30.226Z",
+      "backupStatus": "full-sanitized",
+      "path": "n8n-backup/team/Contents-MKT/CMT-SOC-07_Pinterest_Publisher__v57MIomgxB1RMhJ3.json",
+      "references": []
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "Contents-MKT",
+      "workflowId": "R6Tuk4V4xTw4dmyb",
+      "name": "CMT-SOC-08 X Publisher",
+      "active": true,
+      "availableInMCP": true,
+      "updatedAt": "2026-08-07T18:10:30.226Z",
+      "backupStatus": "full-sanitized",
+      "path": "n8n-backup/team/Contents-MKT/CMT-SOC-08_X_Publisher__R6Tuk4V4xTw4dmyb.json",
+      "references": []
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "Contents-MKT",
+      "workflowId": "erUt41gBKrSrPcje",
+      "name": "CMT-SOC-09 LinkedIn Publisher",
+      "active": true,
+      "availableInMCP": true,
+      "updatedAt": "2026-08-07T18:10:30.226Z",
+      "backupStatus": "full-sanitized",
+      "path": "n8n-backup/team/Contents-MKT/CMT-SOC-09_LinkedIn_Publisher__erUt41gBKrSrPcje.json",
+      "references": []
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "Contents-MKT",
+      "workflowId": "mplJQQGsW6rzj3Xx",
+      "name": "CMT-WEB-01 WordPress Publisher",
+      "active": false,
+      "availableInMCP": true,
+      "updatedAt": "2026-08-07T18:10:30.226Z",
+      "backupStatus": "full-sanitized",
+      "path": "n8n-backup/team/Contents-MKT/CMT-WEB-01_WordPress_Publisher__mplJQQGsW6rzj3Xx.json",
+      "references": []
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "_root",
+      "workflowId": "Ae55HNj6KzLQH2TI",
+      "name": "MD Sync - hub-old to hub",
+      "active": false,
+      "availableInMCP": false,
+      "updatedAt": "2026-08-16T16:11:12.751Z",
+      "backupStatus": "metadata-only-blocked",
+      "path": null,
+      "references": [],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "ai-automation-architect",
+      "workflowId": "WsFMmFgo6d1D4yPd",
+      "name": "SC M2-01 Artifact Registry Intake v1.0",
+      "active": false,
+      "availableInMCP": false,
+      "updatedAt": "2026-07-28T17:21:00.905Z",
+      "backupStatus": "metadata-only-blocked",
+      "path": null,
+      "references": [],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "ai-automation-architect",
+      "workflowId": "3kso4d8CryBCURdJ",
+      "name": "SC M2-02 Atomic Workflow Orchestrator v1.0",
+      "active": false,
+      "availableInMCP": false,
+      "updatedAt": "2026-07-28T17:21:38.905Z",
+      "backupStatus": "metadata-only-blocked",
+      "path": null,
+      "references": [],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "ai-automation-architect",
+      "workflowId": "TDNkElue2Jm9vLww",
+      "name": "SC M2-03 Multi-AI Provider Router v1.0",
+      "active": false,
+      "availableInMCP": false,
+      "updatedAt": "2026-07-28T17:22:02.760Z",
+      "backupStatus": "metadata-only-blocked",
+      "path": null,
+      "references": [],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "ai-automation-architect",
+      "workflowId": "xulwdiwl1gDOoFh8",
+      "name": "SC M2-04 Controlled RAG Retrieval Pipeline v1.0",
+      "active": false,
+      "availableInMCP": false,
+      "updatedAt": "2026-07-28T17:23:48.306Z",
+      "backupStatus": "metadata-only-blocked",
+      "path": null,
+      "references": [],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "ai-automation-architect",
+      "workflowId": "azvRI39gXyfeMADh",
+      "name": "SC M2-05 Channel and Human Escalation Router v1.0",
+      "active": false,
+      "availableInMCP": false,
+      "updatedAt": "2026-07-28T17:23:57.501Z",
+      "backupStatus": "metadata-only-blocked",
+      "path": null,
+      "references": [],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "ai-automation-architect",
+      "workflowId": "hfjflzj1lz2ie8lX",
+      "name": "SC M2-06 Credential Lifecycle Controller v1.0",
+      "active": false,
+      "availableInMCP": false,
+      "updatedAt": "2026-07-28T17:24:06.650Z",
+      "backupStatus": "metadata-only-blocked",
+      "path": null,
+      "references": [],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "ai-automation-architect",
+      "workflowId": "9jOTRRiPp27RC3kS",
+      "name": "SC M2-07 Quota Threshold Monitor v1.0",
+      "active": false,
+      "availableInMCP": false,
+      "updatedAt": "2026-07-28T17:24:15.594Z",
+      "backupStatus": "metadata-only-blocked",
+      "path": null,
+      "references": [],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "ai-automation-architect",
+      "workflowId": "uSAsyXXaQvveq1t5",
+      "name": "SC M2-08 Backup Manifest and Succession Check v1.0",
+      "active": false,
+      "availableInMCP": false,
+      "updatedAt": "2026-07-28T17:23:09.742Z",
+      "backupStatus": "metadata-only-blocked",
+      "path": null,
+      "references": [],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "ai-automation-architect",
+      "workflowId": "juCmGZLSoA6MYa9G",
+      "name": "SC M4-01 LINE OA Channel Adapter v1.0",
+      "active": false,
+      "availableInMCP": false,
+      "updatedAt": "2026-07-29T03:12:18.410Z",
+      "backupStatus": "metadata-only-blocked",
+      "path": null,
+      "references": [],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "ai-automation-architect",
+      "workflowId": "hUfUJA1c9bYLzyF7",
+      "name": "SC M4-02 Gemini Provider Adapter v1.0",
+      "active": true,
+      "availableInMCP": false,
+      "updatedAt": "2026-07-29T05:26:34.136Z",
+      "backupStatus": "metadata-only-blocked",
+      "path": null,
+      "references": [],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "ai-automation-architect",
+      "workflowId": "kQx5AkEI5TYq306y",
+      "name": "SC M4-03 Supabase RAG Adapter v1.0",
+      "active": false,
+      "availableInMCP": false,
+      "updatedAt": "2026-07-29T05:40:39.207Z",
+      "backupStatus": "metadata-only-blocked",
+      "path": null,
+      "references": [],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "ai-automation-architect",
+      "workflowId": "kdvavBpqCJGmRCIO",
+      "name": "SC M4-04 Production Monitoring Adapter v1.0",
+      "active": false,
+      "availableInMCP": false,
+      "updatedAt": "2026-07-29T03:13:28.347Z",
+      "backupStatus": "metadata-only-blocked",
+      "path": null,
+      "references": [],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "ai-automation-architect",
+      "workflowId": "ACBYgZVliXaeKg4X",
+      "name": "SC M4-05 OpenAI Provider Adapter v1.0",
+      "active": true,
+      "availableInMCP": false,
+      "updatedAt": "2026-07-30T00:55:03.987Z",
+      "backupStatus": "metadata-only-blocked",
+      "path": null,
+      "references": [],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "ai-automation-architect",
+      "workflowId": "lE1DQAs9dRBgoIJS",
+      "name": "SC M4-06 Claude Provider Adapter v1.0",
+      "active": true,
+      "availableInMCP": false,
+      "updatedAt": "2026-07-30T01:40:17.097Z",
+      "backupStatus": "metadata-only-blocked",
+      "path": null,
+      "references": [],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "ai-automation-architect",
+      "workflowId": "qDXDwKgblhivrwEZ",
+      "name": "SC M4-07 AI Provider Router v1.0",
+      "active": true,
+      "availableInMCP": false,
+      "updatedAt": "2026-08-01T06:41:14.961Z",
+      "backupStatus": "metadata-only-blocked",
+      "path": null,
+      "references": [],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "ai-automation-architect",
+      "workflowId": "n2Xxa3Gnx9HOr2QC",
+      "name": "SC M4-08 AI Provider Monitoring & Admin Escalation v1.0",
+      "active": true,
+      "availableInMCP": true,
+      "updatedAt": "2026-08-12T17:35:54.054Z",
+      "backupStatus": "full-sanitized",
+      "path": "n8n-backup/team/ai-automation-architect/SC_M4-08_AI_Provider_Monitoring_Admin_Escalation_v1.0__n2Xxa3Gnx9HOr2QC.json",
+      "references": []
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "SuperChoice MCP",
+      "workflowId": "zRzfm90zuXW57DYC",
+      "name": "SC-MCP-01 Continue Module Executor",
+      "active": true,
+      "availableInMCP": false,
+      "updatedAt": "2026-07-28T13:50:17.153Z",
+      "backupStatus": "metadata-only-blocked",
+      "path": null,
+      "references": [],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "SuperChoice MCP",
+      "workflowId": "AaYV2nbYZoMiL7yN",
+      "name": "SC-MCP-02 Run M2 Validation Suite",
+      "active": false,
+      "availableInMCP": false,
+      "updatedAt": "2026-07-30T00:05:55.524Z",
+      "backupStatus": "metadata-only-blocked",
+      "path": null,
+      "references": [],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "SuperChoice MCP",
+      "workflowId": "fx1YSlZ3EALiJ4LN",
+      "name": "SC-MCP-02A M2 Validation Caller",
+      "active": false,
+      "availableInMCP": false,
+      "updatedAt": "2026-07-30T00:07:42.676Z",
+      "backupStatus": "metadata-only-blocked",
+      "path": null,
+      "references": [],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "SuperChoice MCP",
+      "workflowId": "QEymXHq7JFTjmQ7G",
+      "name": "SC-MCP-03 Get n8n Execution Evidence",
+      "active": false,
+      "availableInMCP": false,
+      "updatedAt": "2026-07-29T15:00:02.581Z",
+      "backupStatus": "metadata-only-blocked",
+      "path": null,
+      "references": [],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "SuperChoice MCP",
+      "workflowId": "j1uPUWhWDHpF5Ir7",
+      "name": "SuperChoice MCP - continue_module",
+      "active": true,
+      "availableInMCP": false,
+      "updatedAt": "2026-07-28T11:27:52.672Z",
+      "backupStatus": "metadata-only-blocked",
+      "path": null,
+      "references": [],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "SuperChoice MCP",
+      "workflowId": "rkYiV9bSo5noqhEm",
+      "name": "SuperChoice MCP - inspect_n8n_impact ADD-ON",
+      "active": false,
+      "availableInMCP": false,
+      "updatedAt": "2026-08-02T15:35:22.205Z",
+      "backupStatus": "metadata-only-blocked",
+      "path": null,
+      "references": [],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "SuperChoice MCP",
+      "workflowId": "yY0AnUddaaLRqHpN",
+      "name": "SuperChoice MCP - M2 Validation",
+      "active": false,
+      "availableInMCP": false,
+      "updatedAt": "2026-07-29T14:58:04.620Z",
+      "backupStatus": "metadata-only-blocked",
+      "path": null,
+      "references": [],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "projectType": "team",
+      "projectName": "SuperChoiceAI",
+      "folder": "SuperChoice MCP",
+      "workflowId": "GMUAEeonP1ztrh67",
+      "name": "SuperChoiceAI — SC-MCP-04 Inspect n8n System Impact (READ ONLY)",
+      "active": false,
+      "availableInMCP": false,
+      "updatedAt": "2026-08-02T16:04:05.245Z",
+      "backupStatus": "metadata-only-blocked",
+      "path": null,
+      "references": [],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "projectType": "personal",
+      "projectName": "SuperChoice   <superchoice@hotmail.com>",
+      "folder": "_root",
+      "workflowId": "AA1CxigMU20exHGj",
+      "name": "SuperChoiceAI - 1) Schema Migration (Supabase)",
+      "active": false,
+      "availableInMCP": false,
+      "updatedAt": "2026-07-19T10:05:53.788Z",
+      "backupStatus": "metadata-only-blocked",
+      "path": null,
+      "references": [],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "projectType": "personal",
+      "projectName": "SuperChoice   <superchoice@hotmail.com>",
+      "folder": "_root",
+      "workflowId": "nkJUy76CAicbqR5n",
+      "name": "SuperChoiceAI - 2) Gemini Adapter (sub)",
+      "active": true,
+      "availableInMCP": true,
+      "updatedAt": "2026-07-27T23:43:02.424Z",
+      "backupStatus": "full-sanitized",
+      "path": "n8n-backup/personal/_root/SuperChoiceAI_-_2_Gemini_Adapter_sub__nkJUy76CAicbqR5n.json",
+      "references": []
+    },
+    {
+      "projectType": "personal",
+      "projectName": "SuperChoice   <superchoice@hotmail.com>",
+      "folder": "_root",
+      "workflowId": "n0XhYWlIRSGV8d3A",
+      "name": "SuperChoiceAI - 3) LINE Notify + Dedupe (sub)",
+      "active": true,
+      "availableInMCP": true,
+      "updatedAt": "2026-07-27T23:45:43.422Z",
+      "backupStatus": "full-sanitized",
+      "path": "n8n-backup/personal/_root/SuperChoiceAI_-_3_LINE_Notify_Dedupe_sub__n0XhYWlIRSGV8d3A.json",
+      "references": []
+    },
+    {
+      "projectType": "personal",
+      "projectName": "SuperChoice   <superchoice@hotmail.com>",
+      "folder": "_root",
+      "workflowId": "h8WbPmyqlGFDoskm",
+      "name": "SuperChoiceAI - 4) Registration & Key Management (Form)",
+      "active": true,
+      "availableInMCP": false,
+      "updatedAt": "2026-07-19T16:57:37.897Z",
+      "backupStatus": "metadata-only-blocked",
+      "path": null,
+      "references": [],
+      "error": "INVALID_ARGUMENT"
+    },
+    {
+      "projectType": "personal",
+      "projectName": "SuperChoice   <superchoice@hotmail.com>",
+      "folder": "_root",
+      "workflowId": "BmpaUULjl9aUleLZ",
+      "name": "SuperChoiceAI - 5) Usage Ingestion + Counter + Threshold",
+      "active": true,
+      "availableInMCP": true,
+      "updatedAt": "2026-07-27T23:45:46.970Z",
+      "backupStatus": "full-sanitized",
+      "path": "n8n-backup/personal/_root/SuperChoiceAI_-_5_Usage_Ingestion_Counter_Threshold__BmpaUULjl9aUleLZ.json",
+      "references": [
+        "n0XhYWlIRSGV8d3A"
+      ]
+    },
+    {
+      "projectType": "personal",
+      "projectName": "SuperChoice   <superchoice@hotmail.com>",
+      "folder": "_root",
+      "workflowId": "Mavj4ursnTtEobZW",
+      "name": "SuperChoiceAI - 6) Reset + Monitor Scheduler",
+      "active": false,
+      "availableInMCP": true,
+      "updatedAt": "2026-07-27T23:45:52.286Z",
+      "backupStatus": "full-sanitized",
+      "path": "n8n-backup/personal/_root/SuperChoiceAI_-_6_Reset_Monitor_Scheduler__Mavj4ursnTtEobZW.json",
+      "references": [
+        "n0XhYWlIRSGV8d3A"
+      ]
+    },
+    {
+      "projectType": "personal",
+      "projectName": "SuperChoice   <superchoice@hotmail.com>",
+      "folder": "_root",
+      "workflowId": "OzR3wRlcx5UpBYEp",
+      "name": "SuperChoiceAI - 7) LINE OA Quota Bot (Webhook)",
+      "active": true,
+      "availableInMCP": true,
+      "updatedAt": "2026-07-27T23:43:08.406Z",
+      "backupStatus": "full-sanitized",
+      "path": "n8n-backup/personal/_root/SuperChoiceAI_-_7_LINE_OA_Quota_Bot_Webhook__OzR3wRlcx5UpBYEp.json",
+      "references": []
+    }
+  ],
+  "relations": [
+    {
+      "fromWorkflowId": "4kGrZBFV4lYqbFrs",
+      "toWorkflowId": "v0hnP0nFMXxgbKlb",
+      "fromName": "02_Document_Pipeline",
+      "toName": "05_Error_Logs",
+      "relationSource": "workflow definition/settings"
+    },
+    {
+      "fromWorkflowId": "TW6ld7baAZNSmP4v",
+      "toWorkflowId": "v0hnP0nFMXxgbKlb",
+      "fromName": "03_YouTube_Pipeline",
+      "toName": "05_Error_Logs",
+      "relationSource": "workflow definition/settings"
+    },
+    {
+      "fromWorkflowId": "IfWBPDcLz7adFXgg",
+      "toWorkflowId": "v0hnP0nFMXxgbKlb",
+      "fromName": "04_RAG_Chat",
+      "toName": "05_Error_Logs",
+      "relationSource": "workflow definition/settings"
+    },
+    {
+      "fromWorkflowId": "EyVKS07eluefcAkA",
+      "toWorkflowId": "cQXq4qgAo5NRS8xH",
+      "fromName": "06_Daily_Backup",
+      "toName": "06b_Backup_Error_Alert",
+      "relationSource": "workflow definition/settings"
+    },
+    {
+      "fromWorkflowId": "ozjlX670DCIpTtHi",
+      "toWorkflowId": "v0hnP0nFMXxgbKlb",
+      "fromName": "08_FAQ_Maintenance",
+      "toName": "05_Error_Logs",
+      "relationSource": "workflow definition/settings"
+    },
+    {
+      "fromWorkflowId": "x3oJTlXR3gXNBM5K",
+      "toWorkflowId": "9xq9vgbe5BEwtmUD",
+      "fromName": "CMT-01 Multi-Channel Publishing Orchestrator",
+      "toName": "CMT-SOC-01 YouTube Publisher",
+      "relationSource": "workflow definition/settings"
+    },
+    {
+      "fromWorkflowId": "x3oJTlXR3gXNBM5K",
+      "toWorkflowId": "XuTOqA0p7lZTajsU",
+      "fromName": "CMT-01 Multi-Channel Publishing Orchestrator",
+      "toName": "CMT-04 Idempotency & Audit",
+      "relationSource": "workflow definition/settings"
+    },
+    {
+      "fromWorkflowId": "x3oJTlXR3gXNBM5K",
+      "toWorkflowId": "3NlGX9h0lHg4MHPb",
+      "fromName": "CMT-01 Multi-Channel Publishing Orchestrator",
+      "toName": "CMT-05 Retry & Admin Escalation",
+      "relationSource": "workflow definition/settings"
+    },
+    {
+      "fromWorkflowId": "x3oJTlXR3gXNBM5K",
+      "toWorkflowId": "EP5wKvWEPqKIIlfK",
+      "fromName": "CMT-01 Multi-Channel Publishing Orchestrator",
+      "toName": "CMT-SOC-02 Facebook Page Publisher",
+      "relationSource": "workflow definition/settings"
+    },
+    {
+      "fromWorkflowId": "x3oJTlXR3gXNBM5K",
+      "toWorkflowId": "x9BVXvaNPzUEEdu0",
+      "fromName": "CMT-01 Multi-Channel Publishing Orchestrator",
+      "toName": "CMT-SOC-03 Instagram Publisher",
+      "relationSource": "workflow definition/settings"
+    },
+    {
+      "fromWorkflowId": "x3oJTlXR3gXNBM5K",
+      "toWorkflowId": "LJS12aoqHo6knXg8",
+      "fromName": "CMT-01 Multi-Channel Publishing Orchestrator",
+      "toName": "CMT-SOC-04 Threads Publisher",
+      "relationSource": "workflow definition/settings"
+    },
+    {
+      "fromWorkflowId": "x3oJTlXR3gXNBM5K",
+      "toWorkflowId": "R6Tuk4V4xTw4dmyb",
+      "fromName": "CMT-01 Multi-Channel Publishing Orchestrator",
+      "toName": "CMT-SOC-08 X Publisher",
+      "relationSource": "workflow definition/settings"
+    },
+    {
+      "fromWorkflowId": "x3oJTlXR3gXNBM5K",
+      "toWorkflowId": "acqCJRuh23LwgI0J",
+      "fromName": "CMT-01 Multi-Channel Publishing Orchestrator",
+      "toName": "CMT-SOC-06 LINE OA Publisher",
+      "relationSource": "workflow definition/settings"
+    },
+    {
+      "fromWorkflowId": "x3oJTlXR3gXNBM5K",
+      "toWorkflowId": "erUt41gBKrSrPcje",
+      "fromName": "CMT-01 Multi-Channel Publishing Orchestrator",
+      "toName": "CMT-SOC-09 LinkedIn Publisher",
+      "relationSource": "workflow definition/settings"
+    },
+    {
+      "fromWorkflowId": "BmpaUULjl9aUleLZ",
+      "toWorkflowId": "n0XhYWlIRSGV8d3A",
+      "fromName": "SuperChoiceAI - 5) Usage Ingestion + Counter + Threshold",
+      "toName": "SuperChoiceAI - 3) LINE Notify + Dedupe (sub)",
+      "relationSource": "workflow definition/settings"
+    },
+    {
+      "fromWorkflowId": "Mavj4ursnTtEobZW",
+      "toWorkflowId": "n0XhYWlIRSGV8d3A",
+      "fromName": "SuperChoiceAI - 6) Reset + Monitor Scheduler",
+      "toName": "SuperChoiceAI - 3) LINE Notify + Dedupe (sub)",
+      "relationSource": "workflow definition/settings"
+    }
+  ]
+}

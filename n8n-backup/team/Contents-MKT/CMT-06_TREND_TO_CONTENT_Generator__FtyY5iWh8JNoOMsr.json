@@ -1,0 +1,182 @@
+{
+  "name": "CMT-06 TREND_TO_CONTENT Generator",
+  "nodes": [
+    {
+      "id": "348b8f96-c2a3-4759-b79a-fe3ef26f80af",
+      "name": "Trend Request Input",
+      "parameters": {},
+      "position": [
+        -720,
+        112
+      ],
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "adae4135-9c63-42e3-b648-d64d0205aba6",
+      "name": "Validate Trend Brief",
+      "parameters": {
+        "jsCode": "const x=$json||{}; const errors=[]; if(x.mode!=='TREND_TO_CONTENT') errors.push('mode_must_be_TREND_TO_CONTENT'); if(!x.topic&&!x.trend_source) errors.push('topic_or_trend_source_required'); return [{json:{...x,generator_validation:{valid:errors.length===0,errors},generation_status:'CREDENTIAL_PENDING',external_calls_allowed:false}}];"
+      },
+      "position": [
+        -480,
+        112
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "7f1734de-0ecb-48a9-832d-0e01ce20259f",
+      "name": "Brief Valid?",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{$json.generator_validation.valid}}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        -240,
+        112
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "id": "01c2950b-b265-497c-9664-58139c09fe9f",
+      "name": "Build Safe Generation Plan",
+      "parameters": {
+        "jsCode": "const x=$json; const topic=x.topic||x.trend_source; return [{json:{...x,content_brief:{topic,audience:x.audience||'Thai business audience',language:x.language||'th',formats:x.formats||['short_video','infographic'],brand:'SuperChoice AI',requires_fact_check:true,requires_human_approval:true},status:'GENERATION_PLAN_READY',next:'Connect approved AI and HeyGen credentials'}}];"
+      },
+      "position": [
+        0,
+        0
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "03c2f259-cfd0-4d27-92cf-6df082a916b0",
+      "name": "Reject Trend Brief",
+      "parameters": {
+        "jsCode": "return $input.all().map(i=>({json:{content_id:i.json.content_id||null,status:'TREND_BRIEF_REJECTED',errors:i.json.generator_validation.errors,audit_safe:true}}));"
+      },
+      "position": [
+        0,
+        208
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "ebe1062d-04d3-4ae0-afa7-08b8b6be0e23",
+      "name": "HTTP RequestHeyGen Generate Video (Approval Only)",
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={\"video_inputs\":[{\"character\":{\"type\":\"avatar\",\"avatar_id\":\"{{$json.avatar_id}}\",\"avatar_style\":\"normal\"},\"voice\":{\"type\":\"text\",\"input_text\":\"{{$json.script}}\",\"voice_id\":\"{{$json.voice_id}}\",\"speed\":1}}],\"dimension\":{\"width\":1080,\"height\":1920},\"caption\":true,\"title\":\"{{$json.title}}\"}",
+        "method": "POST",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "https://api.heygen.com/v2/video/generate"
+      },
+      "position": [
+        144,
+        144
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4
+    }
+  ],
+  "connections": {
+    "Brief Valid?": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Build Safe Generation Plan",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Reject Trend Brief",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "HTTP RequestHeyGen Generate Video (Approval Only)": {
+      "main": [
+        []
+      ]
+    },
+    "Trend Request Input": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Validate Trend Brief",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Validate Trend Brief": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Brief Valid?",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "nodeGroups": [],
+  "id": "FtyY5iWh8JNoOMsr",
+  "versionId": "79b795d2-20dd-4b07-aa43-89aaf3ab41e2",
+  "createdAt": "2026-08-03T15:26:15.402Z",
+  "updatedAt": "2026-08-07T18:10:30.226Z",
+  "parentFolderId": "BgEM2QOTFsbe02On",
+  "_backup": {
+    "sourceProjectId": "fTE250SCnzLLnqUC",
+    "sourceProjectName": "SuperChoiceAI",
+    "sourceProjectType": "team",
+    "sourceFolder": "Contents-MKT",
+    "credentialValuesIncluded": false,
+    "credentialsRequireManualRebind": true
+  }
+}

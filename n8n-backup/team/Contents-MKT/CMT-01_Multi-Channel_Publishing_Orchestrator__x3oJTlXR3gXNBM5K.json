@@ -1,0 +1,1376 @@
+{
+  "name": "CMT-01 Multi-Channel Publishing Orchestrator",
+  "nodes": [
+    {
+      "id": "484e3783-2bc6-4caa-a5dd-ecd9c64fc4d2",
+      "name": "When Executed by Another Workflow",
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "position": [
+        0,
+        864
+      ],
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "0c5c4ad6-6e0f-45e5-8a41-36cbe3d15dc7",
+      "name": "Normalize Publishing Request",
+      "parameters": {
+        "jsCode": "const j = $json || {};\nconst toBool = (v) => v === true || v === 'true' || v === 1 || v === '1';\nconst ch = (j.channels && typeof j.channels === 'object') ? j.channels : {};\nconst channels = {\n  youtube: toBool(ch.youtube),\n  facebook_page: toBool(ch.facebook_page ?? ch.facebook),\n  facebook_group: toBool(ch.facebook_group),\n  instagram: toBool(ch.instagram),\n  threads: toBool(ch.threads),\n  x: toBool(ch.x),\n  line_oa: toBool(ch.line_oa ?? ch.line),\n  linkedin: toBool(ch.linkedin),\n  // Explicitly excluded channels — never routed.\n  tiktok: false, pinterest: false, wordpress: false, heygen: false,\n};\nconst allowed = ['youtube','facebook_page','facebook_group','instagram','threads','x','line_oa','linkedin'];\nconst selected_channels = allowed.filter((c) => channels[c] === true);\nconst approved = j.approved === true;\nconst dry_run = j.dry_run !== false;\nreturn { json: {\n  ...j,\n  content_id: j.content_id || ('run-' + Date.now()),\n  approved, dry_run,\n  caption: j.caption || j.description || j.text || '',\n  description: j.description || j.caption || '',\n  text: j.text || j.caption || '',\n  media_url: j.media_url || '',\n  media_type: j.media_type || 'video',\n  title: j.title || '',\n  group_id: j.group_id || '',\n  reply_token: j.reply_token || '',\n  recipient: j.to || j.user_id || '',\n  channels, selected_channels,\n  gate_pass: approved && !dry_run && selected_channels.length > 0,\n} };",
+        "mode": "runOnceForEachItem"
+      },
+      "position": [
+        224,
+        960
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "c6c91100-c638-4b7e-ab84-614653b9c5e0",
+      "name": "Approval & Dry-run Gate",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "gate-pass",
+              "leftValue": "={{ $json.gate_pass }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        448,
+        960
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3
+    },
+    {
+      "id": "fa101cb0-788c-43ee-b790-9d3e87a2b064",
+      "name": "Begin Routing",
+      "parameters": {},
+      "position": [
+        672,
+        672
+      ],
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1
+    },
+    {
+      "id": "a7a8e4ba-eb59-4d03-97e8-8f24ccb2594c",
+      "name": "Route YouTube",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "youtube",
+              "leftValue": "={{ $json.channels.youtube }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        896,
+        0
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3
+    },
+    {
+      "id": "59f37c38-40c9-4311-a68d-b127991c3919",
+      "name": "Set YouTube",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ch",
+              "name": "channel",
+              "type": "string",
+              "value": "youtube"
+            },
+            {
+              "id": "pf",
+              "name": "platform",
+              "type": "string",
+              "value": "youtube"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "position": [
+        1120,
+        0
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5
+    },
+    {
+      "id": "c0d429a4-4dda-470a-b1cd-ccb56c5f84ec",
+      "name": "Publish YouTube",
+      "parameters": {
+        "options": {
+          "waitForSubWorkflow": true
+        },
+        "workflowId": {
+          "__rl": true,
+          "cachedResultName": "CMT-SOC-01 YouTube Publisher",
+          "mode": "list",
+          "value": "9xq9vgbe5BEwtmUD"
+        },
+        "workflowInputs": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [],
+          "schema": [],
+          "value": null
+        }
+      },
+      "position": [
+        1344,
+        0
+      ],
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3
+    },
+    {
+      "id": "059c6df1-81c6-44b9-a285-d323605a32ec",
+      "name": "Aggregate Dispatch Results",
+      "parameters": {
+        "jsCode": "const results = $input.all().map((i) => i.json);\nconst failed = results.filter((r) => r.status === 'error' || r.published !== true);\nconst succeeded = results.filter((r) => r.published === true && r.status === 'success');\nreturn [{ json: {\n  content_id: results[0]?.content_id || '',\n  total: results.length,\n  succeeded_count: succeeded.length,\n  failed_count: failed.length,\n  platforms: results.map((r) => r.platform),\n  results, failed,\n  status: failed.length > 0 ? 'partial_failure' : 'dispatched',\n  aggregated_at: new Date().toISOString(),\n} }];"
+      },
+      "position": [
+        1568,
+        576
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "c17b9b14-e3d6-48b8-bb9f-4a127dae3678",
+      "name": "Audit Run (CMT-04)",
+      "parameters": {
+        "options": {
+          "waitForSubWorkflow": true
+        },
+        "workflowId": {
+          "__rl": true,
+          "cachedResultName": "CMT-04 Idempotency & Audit",
+          "mode": "list",
+          "value": "XuTOqA0p7lZTajsU"
+        },
+        "workflowInputs": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [],
+          "schema": [],
+          "value": null
+        }
+      },
+      "position": [
+        1792,
+        480
+      ],
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3
+    },
+    {
+      "id": "629ef648-6b31-4fe8-ab43-19d3b7431851",
+      "name": "Filter Failures",
+      "parameters": {
+        "jsCode": "const agg = $input.first() ? $input.first().json : {};\nconst failed = Array.isArray(agg.failed) ? agg.failed : [];\nreturn failed.map((f) => ({ json: { ...f, escalation_reason: 'publish_failed', content_id: agg.content_id } }));"
+      },
+      "position": [
+        1792,
+        672
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "b2139caa-212a-4576-aa76-56ef63766c54",
+      "name": "Escalate Failures (CMT-05)",
+      "parameters": {
+        "options": {
+          "waitForSubWorkflow": true
+        },
+        "workflowId": {
+          "__rl": true,
+          "cachedResultName": "CMT-05 Retry & Admin Escalation",
+          "mode": "list",
+          "value": "3NlGX9h0lHg4MHPb"
+        },
+        "workflowInputs": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [],
+          "schema": [],
+          "value": null
+        }
+      },
+      "position": [
+        2016,
+        672
+      ],
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3
+    },
+    {
+      "id": "c7e041a2-8640-45c2-82a0-d5ba86502da3",
+      "name": "Route Facebook Page",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "facebook_page",
+              "leftValue": "={{ $json.channels.facebook_page }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        896,
+        192
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3
+    },
+    {
+      "id": "c7d08653-ce64-4b05-bbea-05c026f2545d",
+      "name": "Set Facebook Page",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ch",
+              "name": "channel",
+              "type": "string",
+              "value": "facebook_page"
+            },
+            {
+              "id": "pf",
+              "name": "platform",
+              "type": "string",
+              "value": "facebook_page"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "position": [
+        1120,
+        192
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5
+    },
+    {
+      "id": "8863fa24-21d6-4481-b6f0-7b2c81700636",
+      "name": "Publish Facebook Page",
+      "parameters": {
+        "options": {
+          "waitForSubWorkflow": true
+        },
+        "workflowId": {
+          "__rl": true,
+          "cachedResultName": "CMT-SOC-02 Facebook Page Publisher",
+          "mode": "list",
+          "value": "EP5wKvWEPqKIIlfK"
+        },
+        "workflowInputs": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [],
+          "schema": [],
+          "value": null
+        }
+      },
+      "position": [
+        1344,
+        192
+      ],
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3
+    },
+    {
+      "id": "859eb6d1-21ea-48c7-90a6-d48342482407",
+      "name": "Route Facebook Group",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "facebook_group",
+              "leftValue": "={{ $json.channels.facebook_group }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        896,
+        384
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3
+    },
+    {
+      "id": "4e72a044-4c20-466b-adf6-9bcd432a025b",
+      "name": "Set Facebook Group",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ch",
+              "name": "channel",
+              "type": "string",
+              "value": "facebook_group"
+            },
+            {
+              "id": "pf",
+              "name": "platform",
+              "type": "string",
+              "value": "facebook_group"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "position": [
+        1120,
+        384
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5
+    },
+    {
+      "id": "baf4462e-4525-4abf-95d5-f0db507f1e26",
+      "name": "Publish Facebook Group",
+      "parameters": {
+        "options": {
+          "waitForSubWorkflow": true
+        },
+        "workflowId": {
+          "__rl": true,
+          "cachedResultName": "CMT-SOC-02 Facebook Page Publisher",
+          "mode": "list",
+          "value": "EP5wKvWEPqKIIlfK"
+        },
+        "workflowInputs": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [],
+          "schema": [],
+          "value": null
+        }
+      },
+      "position": [
+        1344,
+        384
+      ],
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3
+    },
+    {
+      "id": "898f0f35-7a6a-4a89-93bf-946359c754ed",
+      "name": "Route Instagram",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "instagram",
+              "leftValue": "={{ $json.channels.instagram }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        896,
+        576
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3
+    },
+    {
+      "id": "bbed817e-68a1-445c-a2ca-24b227c49d23",
+      "name": "Set Instagram",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ch",
+              "name": "channel",
+              "type": "string",
+              "value": "instagram"
+            },
+            {
+              "id": "pf",
+              "name": "platform",
+              "type": "string",
+              "value": "instagram"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "position": [
+        1120,
+        576
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5
+    },
+    {
+      "id": "effc1857-9e61-4304-b6c3-2d5c7409f159",
+      "name": "Publish Instagram",
+      "parameters": {
+        "options": {
+          "waitForSubWorkflow": true
+        },
+        "workflowId": {
+          "__rl": true,
+          "cachedResultName": "CMT-SOC-03 Instagram Publisher",
+          "mode": "list",
+          "value": "x9BVXvaNPzUEEdu0"
+        },
+        "workflowInputs": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [],
+          "schema": [],
+          "value": null
+        }
+      },
+      "position": [
+        1344,
+        576
+      ],
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3
+    },
+    {
+      "id": "94d3066e-06b3-4886-bddd-290ef0d71660",
+      "name": "Route Threads",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "threads",
+              "leftValue": "={{ $json.channels.threads }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        896,
+        768
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3
+    },
+    {
+      "id": "8ec03f07-2af8-41b7-9c2f-d6704e6d3e6b",
+      "name": "Set Threads",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ch",
+              "name": "channel",
+              "type": "string",
+              "value": "threads"
+            },
+            {
+              "id": "pf",
+              "name": "platform",
+              "type": "string",
+              "value": "threads"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "position": [
+        1120,
+        768
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5
+    },
+    {
+      "id": "f3a88267-b7f5-4840-91a7-b10ae9edb078",
+      "name": "Publish Threads",
+      "parameters": {
+        "options": {
+          "waitForSubWorkflow": true
+        },
+        "workflowId": {
+          "__rl": true,
+          "cachedResultName": "CMT-SOC-04 Threads Publisher",
+          "mode": "list",
+          "value": "LJS12aoqHo6knXg8"
+        },
+        "workflowInputs": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [],
+          "schema": [],
+          "value": null
+        }
+      },
+      "position": [
+        1344,
+        768
+      ],
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3
+    },
+    {
+      "id": "6cafdc03-28f4-4ca9-8472-15fac49ab52f",
+      "name": "Route X",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "x",
+              "leftValue": "={{ $json.channels.x }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        896,
+        960
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3
+    },
+    {
+      "id": "0998ef61-b5f9-476c-9c51-a467d659fcec",
+      "name": "Set X",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ch",
+              "name": "channel",
+              "type": "string",
+              "value": "x"
+            },
+            {
+              "id": "pf",
+              "name": "platform",
+              "type": "string",
+              "value": "x"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "position": [
+        1120,
+        960
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5
+    },
+    {
+      "id": "d47a3c82-fc6a-442e-9026-93ede36e824f",
+      "name": "Publish X",
+      "parameters": {
+        "options": {
+          "waitForSubWorkflow": true
+        },
+        "workflowId": {
+          "__rl": true,
+          "cachedResultName": "CMT-SOC-08 X Publisher",
+          "mode": "list",
+          "value": "R6Tuk4V4xTw4dmyb"
+        },
+        "workflowInputs": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [],
+          "schema": [],
+          "value": null
+        }
+      },
+      "position": [
+        1344,
+        960
+      ],
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3
+    },
+    {
+      "id": "4a1bc0ea-37e6-4de5-bc5e-758e3a96d33b",
+      "name": "Route LINE OA",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "line_oa",
+              "leftValue": "={{ $json.channels.line_oa }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        896,
+        1152
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3
+    },
+    {
+      "id": "e7e9f5e9-f259-420c-b697-ba9fa0494c49",
+      "name": "Set LINE OA",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ch",
+              "name": "channel",
+              "type": "string",
+              "value": "line_oa"
+            },
+            {
+              "id": "pf",
+              "name": "platform",
+              "type": "string",
+              "value": "line_oa"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "position": [
+        1120,
+        1152
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5
+    },
+    {
+      "id": "ae2f13de-784e-4706-91c4-7cde8e2cf827",
+      "name": "Publish LINE OA",
+      "parameters": {
+        "options": {
+          "waitForSubWorkflow": true
+        },
+        "workflowId": {
+          "__rl": true,
+          "cachedResultName": "CMT-SOC-06 LINE OA Publisher",
+          "mode": "list",
+          "value": "acqCJRuh23LwgI0J"
+        },
+        "workflowInputs": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [],
+          "schema": [],
+          "value": null
+        }
+      },
+      "position": [
+        1344,
+        1152
+      ],
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3
+    },
+    {
+      "id": "a93c1809-3a24-466e-8cc8-4cd17aeead55",
+      "name": "Route LinkedIn",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "linkedin",
+              "leftValue": "={{ $json.channels.linkedin }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        896,
+        1344
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3
+    },
+    {
+      "id": "c517ba13-f735-4dbe-9d9d-117d375aade6",
+      "name": "Set LinkedIn",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ch",
+              "name": "channel",
+              "type": "string",
+              "value": "linkedin"
+            },
+            {
+              "id": "pf",
+              "name": "platform",
+              "type": "string",
+              "value": "linkedin"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "position": [
+        1120,
+        1344
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5
+    },
+    {
+      "id": "c9baca10-2286-4976-9ddf-60f9df3cf84d",
+      "name": "Publish LinkedIn",
+      "parameters": {
+        "options": {
+          "waitForSubWorkflow": true
+        },
+        "workflowId": {
+          "__rl": true,
+          "cachedResultName": "CMT-SOC-09 LinkedIn Publisher",
+          "mode": "list",
+          "value": "erUt41gBKrSrPcje"
+        },
+        "workflowInputs": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [],
+          "schema": [],
+          "value": null
+        }
+      },
+      "position": [
+        1344,
+        1344
+      ],
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3
+    },
+    {
+      "id": "2d685b7f-bd98-4994-8467-07e4f62afb2a",
+      "name": "Skipped Aggregate",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "s1",
+              "name": "status",
+              "type": "string",
+              "value": "skipped"
+            },
+            {
+              "id": "s2",
+              "name": "published",
+              "type": "boolean",
+              "value": false
+            },
+            {
+              "id": "s3",
+              "name": "content_id",
+              "type": "string",
+              "value": "={{ $json.content_id }}"
+            },
+            {
+              "id": "s4",
+              "name": "reason",
+              "type": "string",
+              "value": "={{ $json.approved !== true ? 'not_approved' : ($json.dry_run === true ? 'dry_run_enabled' : 'no_supported_channel_selected') }}"
+            },
+            {
+              "id": "s5",
+              "name": "selected_channels",
+              "type": "array",
+              "value": "={{ $json.selected_channels }}"
+            },
+            {
+              "id": "s6",
+              "name": "message",
+              "type": "string",
+              "value": "Publishing skipped by orchestrator gate; no sub-workflow was called."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "position": [
+        672,
+        1056
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5
+    },
+    {
+      "id": "a9e5474b-b9ed-4724-8662-4f874a2387e9",
+      "name": "Manual Trigger (Dry-run)",
+      "parameters": {},
+      "position": [
+        0,
+        1056
+      ],
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1
+    },
+    {
+      "id": "c5ae2104-f877-4db2-b0b9-fcf580afea05",
+      "name": "Webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "options": {},
+        "path": "cmt-content-generate"
+      },
+      "position": [
+        0,
+        0
+      ],
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "webhookId": "01c07de3-f612-40f1-ac2b-254f2c49c06d"
+    }
+  ],
+  "connections": {
+    "Aggregate Dispatch Results": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Audit Run (CMT-04)",
+            "type": "main"
+          },
+          {
+            "index": 0,
+            "node": "Filter Failures",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Approval & Dry-run Gate": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Begin Routing",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Skipped Aggregate",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Begin Routing": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Route YouTube",
+            "type": "main"
+          },
+          {
+            "index": 0,
+            "node": "Route Facebook Page",
+            "type": "main"
+          },
+          {
+            "index": 0,
+            "node": "Route Facebook Group",
+            "type": "main"
+          },
+          {
+            "index": 0,
+            "node": "Route Instagram",
+            "type": "main"
+          },
+          {
+            "index": 0,
+            "node": "Route Threads",
+            "type": "main"
+          },
+          {
+            "index": 0,
+            "node": "Route X",
+            "type": "main"
+          },
+          {
+            "index": 0,
+            "node": "Route LINE OA",
+            "type": "main"
+          },
+          {
+            "index": 0,
+            "node": "Route LinkedIn",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Filter Failures": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Escalate Failures (CMT-05)",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Manual Trigger (Dry-run)": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Normalize Publishing Request",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Normalize Publishing Request": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Approval & Dry-run Gate",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Publish Facebook Group": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Aggregate Dispatch Results",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Publish Facebook Page": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Aggregate Dispatch Results",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Publish Instagram": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Aggregate Dispatch Results",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Publish LINE OA": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Aggregate Dispatch Results",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Publish LinkedIn": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Aggregate Dispatch Results",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Publish Threads": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Aggregate Dispatch Results",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Publish X": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Aggregate Dispatch Results",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Publish YouTube": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Aggregate Dispatch Results",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Route Facebook Group": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Set Facebook Group",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Route Facebook Page": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Set Facebook Page",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Route Instagram": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Set Instagram",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Route LINE OA": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Set LINE OA",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Route LinkedIn": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Set LinkedIn",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Route Threads": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Set Threads",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Route X": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Set X",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Route YouTube": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Set YouTube",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Set Facebook Group": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Publish Facebook Group",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Set Facebook Page": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Publish Facebook Page",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Set Instagram": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Publish Instagram",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Set LINE OA": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Publish LINE OA",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Set LinkedIn": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Publish LinkedIn",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Set Threads": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Publish Threads",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Set X": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Publish X",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Set YouTube": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Publish YouTube",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Normalize Publishing Request",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "nodeGroups": [],
+  "id": "x3oJTlXR3gXNBM5K",
+  "versionId": "ca41926d-ff1f-4ab9-97b5-0e312570c7da",
+  "createdAt": "2026-08-02T16:49:20.221Z",
+  "updatedAt": "2026-08-08T15:48:32.535Z",
+  "parentFolderId": "BgEM2QOTFsbe02On",
+  "_backup": {
+    "sourceProjectId": "fTE250SCnzLLnqUC",
+    "sourceProjectName": "SuperChoiceAI",
+    "sourceProjectType": "team",
+    "sourceFolder": "Contents-MKT",
+    "credentialValuesIncluded": false,
+    "credentialsRequireManualRebind": true
+  }
+}

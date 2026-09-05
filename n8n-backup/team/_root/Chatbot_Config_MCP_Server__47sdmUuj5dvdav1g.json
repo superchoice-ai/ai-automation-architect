@@ -1,0 +1,602 @@
+{
+  "name": "Chatbot Config MCP Server",
+  "nodes": [
+    {
+      "id": "faec8058-bd73-46d9-ab47-cd096823918c",
+      "name": "Chatbot Config MCP",
+      "parameters": {
+        "path": "chatbot-config"
+      },
+      "position": [
+        0,
+        0
+      ],
+      "type": "@n8n/n8n-nodes-langchain.mcpTrigger",
+      "typeVersion": 1.1,
+      "webhookId": "79da8145-20c4-4f44-8c36-ecb1f54922c3"
+    },
+    {
+      "id": "29303b7a-f76c-4c87-9d91-6f0a5e28ef2b",
+      "name": "Get Chatbot Config",
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "chatbot_config",
+          "cachedResultUrl": "/projects/fTE250SCnzLLnqUC/datatables/5nWp9I7fCE4Gmnfx",
+          "mode": "list",
+          "value": "5nWp9I7fCE4Gmnfx"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "config_key",
+              "keyValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('config_key', 'The config_key of the chatbot config row to look up. If omitted, leave blank to fetch all rows.') }}"
+            }
+          ]
+        },
+        "matchType": "allConditions",
+        "operation": "get",
+        "returnAll": true
+      },
+      "position": [
+        -192,
+        224
+      ],
+      "type": "n8n-nodes-base.dataTableTool",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "9fef0af2-a51f-4660-9323-319cb7c5abff",
+      "name": "Update Internet Search Flag",
+      "parameters": {
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "enable_internet_search": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('enable_internet_search', 'Must be exactly true or false. Enables or disables internet search for the chatbot.', 'boolean') }}"
+          }
+        },
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "chatbot_config",
+          "cachedResultUrl": "/projects/fTE250SCnzLLnqUC/datatables/5nWp9I7fCE4Gmnfx",
+          "mode": "list",
+          "value": "5nWp9I7fCE4Gmnfx"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "config_key",
+              "keyValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('config_key', 'The config_key of the chatbot config row to update') }}"
+            }
+          ]
+        },
+        "matchType": "allConditions",
+        "operation": "update",
+        "options": {}
+      },
+      "position": [
+        -64,
+        224
+      ],
+      "type": "n8n-nodes-base.dataTableTool",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "12ea34e5-3d83-4aa5-9300-3957e4b7ac76",
+      "name": "Update Notify Admin Flag",
+      "parameters": {
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "enable_notify_admin": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('enable_notify_admin', 'Must be exactly true or false. Enables or disables admin notifications.', 'boolean') }}"
+          }
+        },
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "chatbot_config",
+          "cachedResultUrl": "/projects/fTE250SCnzLLnqUC/datatables/5nWp9I7fCE4Gmnfx",
+          "mode": "list",
+          "value": "5nWp9I7fCE4Gmnfx"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "config_key",
+              "keyValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('config_key', 'The config_key of the chatbot config row to update') }}"
+            }
+          ]
+        },
+        "matchType": "allConditions",
+        "operation": "update",
+        "options": {}
+      },
+      "position": [
+        64,
+        224
+      ],
+      "type": "n8n-nodes-base.dataTableTool",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "799a8de5-a642-44c4-a300-4d4c318afc90",
+      "name": "Update Score Threshold",
+      "parameters": {
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "score_threshold": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('score_threshold', 'A number between 0.0 and 1.0 inclusive. Reject any value outside this range. Recommended value is 0.7.', 'number') }}"
+          }
+        },
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "chatbot_config",
+          "cachedResultUrl": "/projects/fTE250SCnzLLnqUC/datatables/5nWp9I7fCE4Gmnfx",
+          "mode": "list",
+          "value": "5nWp9I7fCE4Gmnfx"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "config_key",
+              "keyValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('config_key', 'The config_key of the chatbot config row to update') }}"
+            }
+          ]
+        },
+        "matchType": "allConditions",
+        "operation": "update",
+        "options": {}
+      },
+      "position": [
+        192,
+        224
+      ],
+      "type": "n8n-nodes-base.dataTableTool",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "aef00792-bedc-4f95-828b-35f01d2710e8",
+      "name": "Update Admin Line Target",
+      "parameters": {
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "admin_line_target": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('admin_line_target', 'A LINE user or group ID. Must start with the letter U (user) or C (group/room).') }}"
+          }
+        },
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "chatbot_config",
+          "cachedResultUrl": "/projects/fTE250SCnzLLnqUC/datatables/5nWp9I7fCE4Gmnfx",
+          "mode": "list",
+          "value": "5nWp9I7fCE4Gmnfx"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "config_key",
+              "keyValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('config_key', 'The config_key of the chatbot config row to update') }}"
+            }
+          ]
+        },
+        "matchType": "allConditions",
+        "operation": "update",
+        "options": {}
+      },
+      "position": [
+        320,
+        224
+      ],
+      "type": "n8n-nodes-base.dataTableTool",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "48d34b92-d9bd-40c5-bd25-2193009117e5",
+      "name": "Update FAQ Match Threshold",
+      "parameters": {
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "faq_match_threshold": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('faq_match_threshold', 'A number between 0.0 and 1.0. Cosine-similarity threshold for FAQ cache matching. Recommended value is 0.6.', 'number') }}"
+          }
+        },
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "chatbot_config",
+          "cachedResultUrl": "/projects/fTE250SCnzLLnqUC/datatables/5nWp9I7fCE4Gmnfx",
+          "mode": "list",
+          "value": "5nWp9I7fCE4Gmnfx"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "config_key",
+              "keyValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('config_key', 'The config_key of the chatbot config row to update') }}"
+            }
+          ]
+        },
+        "matchType": "allConditions",
+        "operation": "update",
+        "options": {}
+      },
+      "position": [
+        -192,
+        352
+      ],
+      "type": "n8n-nodes-base.dataTableTool",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "01852955-e9a7-47f1-8b9c-5b9e880edfee",
+      "name": "Update FAQ Lex Min",
+      "parameters": {
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "faq_lex_min": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('faq_lex_min', 'A number between 0.0 and 1.0. Minimum lexical (character trigram) overlap required, alongside cosine, for a mid-confidence FAQ match. Recommended value is 0.08.', 'number') }}"
+          }
+        },
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "chatbot_config",
+          "cachedResultUrl": "/projects/fTE250SCnzLLnqUC/datatables/5nWp9I7fCE4Gmnfx",
+          "mode": "list",
+          "value": "5nWp9I7fCE4Gmnfx"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "config_key",
+              "keyValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('config_key', 'The config_key of the chatbot config row to update') }}"
+            }
+          ]
+        },
+        "matchType": "allConditions",
+        "operation": "update",
+        "options": {}
+      },
+      "position": [
+        -64,
+        352
+      ],
+      "type": "n8n-nodes-base.dataTableTool",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "6532d6b0-bab5-41c1-9bdd-5e47d9e3c971",
+      "name": "Update FAQ High Confidence Threshold",
+      "parameters": {
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "faq_high_confidence_threshold": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('faq_high_confidence_threshold', 'A number between 0.0 and 1.0, should be higher than faq_match_threshold. Cosine similarity above which an FAQ match is accepted without needing lexical support. Recommended value is 0.85.', 'number') }}"
+          }
+        },
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "chatbot_config",
+          "cachedResultUrl": "/projects/fTE250SCnzLLnqUC/datatables/5nWp9I7fCE4Gmnfx",
+          "mode": "list",
+          "value": "5nWp9I7fCE4Gmnfx"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "config_key",
+              "keyValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('config_key', 'The config_key of the chatbot config row to update') }}"
+            }
+          ]
+        },
+        "matchType": "allConditions",
+        "operation": "update",
+        "options": {}
+      },
+      "position": [
+        64,
+        352
+      ],
+      "type": "n8n-nodes-base.dataTableTool",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "98dabc2a-43bb-4190-94a9-8ea8e37be398",
+      "name": "Update OCR Min Text Length",
+      "parameters": {
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ocr_min_text_length": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('ocr_min_text_length', 'A whole number of characters. If a PDF extracts fewer non-whitespace characters than this, it is routed to Gemini OCR. Recommended value is 20.', 'number') }}"
+          }
+        },
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "chatbot_config",
+          "cachedResultUrl": "/projects/fTE250SCnzLLnqUC/datatables/5nWp9I7fCE4Gmnfx",
+          "mode": "list",
+          "value": "5nWp9I7fCE4Gmnfx"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "config_key",
+              "keyValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('config_key', 'The config_key of the chatbot config row to update') }}"
+            }
+          ]
+        },
+        "matchType": "allConditions",
+        "operation": "update",
+        "options": {}
+      },
+      "position": [
+        192,
+        352
+      ],
+      "type": "n8n-nodes-base.dataTableTool",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "e8dcd6ef-b7b0-482e-8d86-56278c2e9062",
+      "name": "Update Log Retention Days",
+      "parameters": {
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "log_retention_days": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('log_retention_days', 'A whole number of days. Error log rows older than this are deleted daily. Recommended value is 90.', 'number') }}"
+          }
+        },
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "chatbot_config",
+          "cachedResultUrl": "/projects/fTE250SCnzLLnqUC/datatables/5nWp9I7fCE4Gmnfx",
+          "mode": "list",
+          "value": "5nWp9I7fCE4Gmnfx"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "config_key",
+              "keyValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('config_key', 'The config_key of the chatbot config row to update') }}"
+            }
+          ]
+        },
+        "matchType": "allConditions",
+        "operation": "update",
+        "options": {}
+      },
+      "position": [
+        320,
+        352
+      ],
+      "type": "n8n-nodes-base.dataTableTool",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "953abf47-1300-4384-a344-170dc7744c23",
+      "name": "Update Fallback To FAQ On Quota",
+      "parameters": {
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "fallback_to_faq_on_quota_exceeded": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('fallback_to_faq_on_quota_exceeded', 'Must be exactly true or false. When a Gemini call fails with a quota or rate-limit error, whether to try serving a cached FAQ answer instead of an error message.', 'boolean') }}"
+          }
+        },
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "chatbot_config",
+          "cachedResultUrl": "/projects/fTE250SCnzLLnqUC/datatables/5nWp9I7fCE4Gmnfx",
+          "mode": "list",
+          "value": "5nWp9I7fCE4Gmnfx"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "config_key",
+              "keyValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('config_key', 'The config_key of the chatbot config row to update') }}"
+            }
+          ]
+        },
+        "matchType": "allConditions",
+        "operation": "update",
+        "options": {}
+      },
+      "position": [
+        448,
+        352
+      ],
+      "type": "n8n-nodes-base.dataTableTool",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "124d81ef-db35-4eed-9e92-507f891c0e01",
+      "name": "Update Notify User On Error",
+      "parameters": {
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "notify_user_on_error": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('notify_user_on_error', 'Must be exactly true or false. Whether the end user sees a message (vs a short generic apology with no technical detail) when a non-recoverable error occurs.', 'boolean') }}"
+          }
+        },
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "chatbot_config",
+          "cachedResultUrl": "/projects/fTE250SCnzLLnqUC/datatables/5nWp9I7fCE4Gmnfx",
+          "mode": "list",
+          "value": "5nWp9I7fCE4Gmnfx"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "config_key",
+              "keyValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('config_key', 'The config_key of the chatbot config row to update') }}"
+            }
+          ]
+        },
+        "matchType": "allConditions",
+        "operation": "update",
+        "options": {}
+      },
+      "position": [
+        576,
+        352
+      ],
+      "type": "n8n-nodes-base.dataTableTool",
+      "typeVersion": 1.1
+    }
+  ],
+  "connections": {
+    "Get Chatbot Config": {
+      "ai_tool": [
+        [
+          {
+            "index": 0,
+            "node": "Chatbot Config MCP",
+            "type": "ai_tool"
+          }
+        ]
+      ]
+    },
+    "Update Admin Line Target": {
+      "ai_tool": [
+        [
+          {
+            "index": 0,
+            "node": "Chatbot Config MCP",
+            "type": "ai_tool"
+          }
+        ]
+      ]
+    },
+    "Update FAQ High Confidence Threshold": {
+      "ai_tool": [
+        [
+          {
+            "index": 0,
+            "node": "Chatbot Config MCP",
+            "type": "ai_tool"
+          }
+        ]
+      ]
+    },
+    "Update FAQ Lex Min": {
+      "ai_tool": [
+        [
+          {
+            "index": 0,
+            "node": "Chatbot Config MCP",
+            "type": "ai_tool"
+          }
+        ]
+      ]
+    },
+    "Update FAQ Match Threshold": {
+      "ai_tool": [
+        [
+          {
+            "index": 0,
+            "node": "Chatbot Config MCP",
+            "type": "ai_tool"
+          }
+        ]
+      ]
+    },
+    "Update Fallback To FAQ On Quota": {
+      "ai_tool": [
+        [
+          {
+            "index": 0,
+            "node": "Chatbot Config MCP",
+            "type": "ai_tool"
+          }
+        ]
+      ]
+    },
+    "Update Internet Search Flag": {
+      "ai_tool": [
+        [
+          {
+            "index": 0,
+            "node": "Chatbot Config MCP",
+            "type": "ai_tool"
+          }
+        ]
+      ]
+    },
+    "Update Log Retention Days": {
+      "ai_tool": [
+        [
+          {
+            "index": 0,
+            "node": "Chatbot Config MCP",
+            "type": "ai_tool"
+          }
+        ]
+      ]
+    },
+    "Update Notify Admin Flag": {
+      "ai_tool": [
+        [
+          {
+            "index": 0,
+            "node": "Chatbot Config MCP",
+            "type": "ai_tool"
+          }
+        ]
+      ]
+    },
+    "Update Notify User On Error": {
+      "ai_tool": [
+        [
+          {
+            "index": 0,
+            "node": "Chatbot Config MCP",
+            "type": "ai_tool"
+          }
+        ]
+      ]
+    },
+    "Update OCR Min Text Length": {
+      "ai_tool": [
+        [
+          {
+            "index": 0,
+            "node": "Chatbot Config MCP",
+            "type": "ai_tool"
+          }
+        ]
+      ]
+    },
+    "Update Score Threshold": {
+      "ai_tool": [
+        [
+          {
+            "index": 0,
+            "node": "Chatbot Config MCP",
+            "type": "ai_tool"
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionOrder": "v1",
+    "timeSavedMode": "fixed"
+  },
+  "tags": [],
+  "nodeGroups": [],
+  "id": "47sdmUuj5dvdav1g",
+  "versionId": "e0eba09d-39aa-456a-af50-0b1d40fd7ae6",
+  "createdAt": "2026-07-19T08:00:12.879Z",
+  "updatedAt": "2026-07-26T10:37:41.497Z",
+  "parentFolderId": null,
+  "_backup": {
+    "sourceProjectId": "fTE250SCnzLLnqUC",
+    "sourceProjectName": "SuperChoiceAI",
+    "sourceProjectType": "team",
+    "sourceFolder": "_root",
+    "credentialValuesIncluded": false,
+    "credentialsRequireManualRebind": true
+  }
+}

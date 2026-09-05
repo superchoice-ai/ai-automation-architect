@@ -1,0 +1,429 @@
+{
+  "name": "SuperChoiceAI - 7) LINE OA Quota Bot (Webhook)",
+  "active": true,
+  "nodes": [
+    {
+      "id": "2182b240-77fd-4517-88a9-e08dbab62f2c",
+      "name": "LINE Webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "options": {},
+        "path": "line/webhook",
+        "responseMode": "responseNode"
+      },
+      "position": [
+        0,
+        192
+      ],
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "webhookId": "3d6203e4-5049-4f0a-9b3d-fb247aae0bed"
+    },
+    {
+      "id": "845e6bb1-7c81-42f3-b062-a5774bff1ec2",
+      "name": "Respond 200",
+      "parameters": {
+        "options": {
+          "responseCode": 200
+        },
+        "respondWith": "text",
+        "responseBody": "OK"
+      },
+      "position": [
+        224,
+        192
+      ],
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5
+    },
+    {
+      "id": "e63718b8-3cb1-43bf-b48d-2556a64d37f3",
+      "name": "Parse Events",
+      "parameters": {
+        "jsCode": "const body = ($input.first().json.body) || {};\nconst destination = body.destination || '';\nconst events = Array.isArray(body.events) ? body.events : [];\nconst out = [];\nfor (const e of events) {\n  if (e && e.type === 'message' && e.message && e.message.type === 'text' && e.source && e.source.userId) {\n    out.push({ json: {\n      replyToken: e.replyToken,\n      line_user_id: e.source.userId,\n      oa_id: destination,\n      text: String(e.message.text || '').trim()\n    }});\n  }\n}\nreturn out;"
+      },
+      "position": [
+        448,
+        192
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "eed5f743-b4fa-416c-b2d1-726e9f0a5c71",
+      "name": "Route Intent",
+      "parameters": {
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "help"
+        },
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "combinator": "or",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.text.toLowerCase() }}",
+                    "operator": {
+                      "operation": "startsWith",
+                      "type": "string"
+                    },
+                    "rightValue": "register"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                }
+              },
+              "outputKey": "register",
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "combinator": "or",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.text }}",
+                    "operator": {
+                      "operation": "contains",
+                      "type": "string"
+                    },
+                    "rightValue": "สมัคร"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                }
+              },
+              "outputKey": "register_th",
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "combinator": "or",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.text.toLowerCase() }}",
+                    "operator": {
+                      "operation": "contains",
+                      "type": "string"
+                    },
+                    "rightValue": "quota"
+                  },
+                  {
+                    "leftValue": "={{ $json.text }}",
+                    "operator": {
+                      "operation": "contains",
+                      "type": "string"
+                    },
+                    "rightValue": "โควต้า"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                }
+              },
+              "outputKey": "quota",
+              "renameOutput": true
+            }
+          ]
+        }
+      },
+      "position": [
+        672,
+        160
+      ],
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4
+    },
+    {
+      "id": "96e552cc-9dd0-462f-a8dc-37090ca95cf2",
+      "name": "Build Register Reply",
+      "parameters": {
+        "jsCode": "const j = $input.first().json;\nconst url = 'https://superchoiceai.app.n8n.cloud/form/superchoiceai-register?line_user_id=' + encodeURIComponent(j.line_user_id) + '&oa_id=' + encodeURIComponent(j.oa_id);\nconst text = '📝 ลงทะเบียน / ผูก API Key\\nกดลิงก์ด้านล่างเพื่อผูกคีย์ AI ของคุณอย่างปลอดภัย:\\n' + url;\nreturn [{ json: { replyToken: j.replyToken, line_user_id: j.line_user_id, oa_id: j.oa_id, text } }];"
+      },
+      "position": [
+        1120,
+        0
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "3f47efcd-239c-47fe-9017-52a4c4dcc4f4",
+      "name": "Format Or Text",
+      "parameters": {
+        "jsonOutput": "={{ JSON.stringify({ replyToken: $json.replyToken, line_user_id: $json.line_user_id, oa_id: $json.oa_id, text: $json.text }) }}",
+        "mode": "raw",
+        "options": {}
+      },
+      "position": [
+        1344,
+        192
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4
+    },
+    {
+      "credentials": {
+        "postgres": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "25b2fae0-c86a-4ced-828e-9cce686ab2c1",
+      "name": "Lookup OA Token",
+      "parameters": {
+        "operation": "executeQuery",
+        "options": {
+          "queryReplacement": "={{ $json.oa_id }}"
+        },
+        "query": "SELECT v.decrypted_secret AS token\nFROM line_oa_configs c\nJOIN vault.decrypted_secrets v ON v.id = c.channel_access_token_secret\nWHERE c.oa_id = $1\nLIMIT 1;"
+      },
+      "position": [
+        1568,
+        192
+      ],
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6
+    },
+    {
+      "id": "c6474f6b-8cbb-47b3-aa7c-062c45df9160",
+      "name": "LINE Reply",
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "__REDACTED__"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "jsonBody": "={{ JSON.stringify({ replyToken: $('Format Or Text').item.json.replyToken, messages: [{ type: \"text\", text: $('Format Or Text').item.json.text }] }) }}",
+        "method": "POST",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        },
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "url": "https://api.line.me/v2/bot/message/reply"
+      },
+      "position": [
+        1792,
+        192
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4
+    },
+    {
+      "credentials": {
+        "postgres": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "13f55157-4498-4cb8-b533-fe115922cdc4",
+      "name": "Quota Query",
+      "parameters": {
+        "operation": "executeQuery",
+        "options": {
+          "queryReplacement": "={{ $json.line_user_id }},={{ $json.oa_id }}"
+        },
+        "query": "SELECT p.name AS provider, qu.service_type, qu.model, qu.scope, qu.used_value, qu.limit_value, qu.reset_at,\n       round(qu.used_value::numeric / NULLIF(qu.limit_value, 0) * 100) AS percent\nFROM quota_usage qu\nJOIN provider_accounts pa ON pa.id = qu.provider_account_id\nJOIN providers p ON p.code = pa.provider_code\nJOIN app_users u ON u.id = pa.app_user_id\nJOIN line_accounts la ON la.app_user_id = u.id\nWHERE la.line_user_id = $1 AND la.oa_id = $2 AND pa.status = 'active'\nORDER BY p.name, qu.service_type;"
+      },
+      "position": [
+        896,
+        192
+      ],
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6
+    },
+    {
+      "id": "0a36962a-ecb1-4cb9-8640-4c3330ea18b7",
+      "name": "Format Quota",
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(i => i.json);\nconst src = $('Parse Events').first().json;\nif (!rows.length || (rows.length === 1 && Object.keys(rows[0]).length === 0)) {\n  const url = 'https://superchoiceai.app.n8n.cloud/form/superchoiceai-register?line_user_id=' + encodeURIComponent(src.line_user_id) + '&oa_id=' + encodeURIComponent(src.oa_id);\n  return [{ json: { replyToken: src.replyToken, line_user_id: src.line_user_id, oa_id: src.oa_id, text: 'คุณยังไม่ได้ผูก API Key\\nกดลงทะเบียนที่นี่:\\n' + url } }];\n}\nlet lines = ['📊 สรุปโควต้า AI'];\nlet currentProvider = '';\nlet resetAt = '';\nfor (const r of rows) {\n  if (r.provider !== currentProvider) {\n    currentProvider = r.provider;\n    lines.push('');\n    lines.push('▸ ' + currentProvider);\n  }\n  const label = (r.model && r.model !== '*') ? r.model : (r.service_type + ' (รวม)');\n  const pct = (r.percent === null || r.percent === undefined) ? '-' : (r.percent + '%');\n  const warn = (Number(r.percent) >= 90) ? ' ⚠️' : '';\n  lines.push('  • ' + label + ': ' + pct + ' (' + r.used_value + '/' + r.limit_value + ')' + warn);\n  if (r.reset_at) resetAt = r.reset_at;\n}\nif (resetAt) { lines.push(''); lines.push('รีเซ็ตรอบถัดไป: ' + resetAt); }\nreturn [{ json: { replyToken: src.replyToken, line_user_id: src.line_user_id, oa_id: src.oa_id, text: lines.join('\\n') } }];"
+      },
+      "position": [
+        1120,
+        192
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "381089c9-6a83-4b48-bbd3-73cd429a7de1",
+      "name": "Build Help Reply",
+      "parameters": {
+        "jsCode": "const j = $input.first().json;\nconst text = 'สวัสดีครับ 👋 SuperChoiceAI\\nคำสั่งที่ใช้ได้:\\n• \"quota\" หรือ \"โควต้า\" — ดูสถานะโควต้า AI\\n• \"register\" หรือ \"สมัคร\" — ผูก/จัดการ API Key';\nreturn [{ json: { replyToken: j.replyToken, line_user_id: j.line_user_id, oa_id: j.oa_id, text } }];"
+      },
+      "position": [
+        1120,
+        384
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    }
+  ],
+  "connections": {
+    "Build Help Reply": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Format Or Text",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Build Register Reply": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Format Or Text",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Format Or Text": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Lookup OA Token",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Format Quota": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Format Or Text",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "LINE Webhook": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Respond 200",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Lookup OA Token": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "LINE Reply",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Parse Events": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Route Intent",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Quota Query": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Format Quota",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Respond 200": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Parse Events",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Route Intent": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Build Register Reply",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Build Register Reply",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Quota Query",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Build Help Reply",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "nodeGroups": [],
+  "_backup": {
+    "sourceWorkflowId": "OzR3wRlcx5UpBYEp",
+    "sourceActiveVersionId": "9d93cd02-6980-4b60-bf00-ad516c7fb6c9",
+    "snapshotType": "published-active-version",
+    "credentialValuesIncluded": false
+  }
+}

@@ -1,0 +1,454 @@
+{
+  "name": "SuperChoiceAI - 3) LINE Notify + Dedupe (sub)",
+  "nodes": [
+    {
+      "id": "e2b1a1bd-ba60-4cbb-8b65-c5baf00c9c4c",
+      "name": "When Called",
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "line_user_id"
+            },
+            {
+              "name": "oa_id"
+            },
+            {
+              "name": "provider_account_id"
+            },
+            {
+              "name": "service_type"
+            },
+            {
+              "name": "model"
+            },
+            {
+              "name": "threshold"
+            },
+            {
+              "name": "used_value",
+              "type": "number"
+            },
+            {
+              "name": "limit_value",
+              "type": "number"
+            },
+            {
+              "name": "reset_at"
+            },
+            {
+              "name": "cycle_key"
+            },
+            {
+              "name": "message_text"
+            }
+          ]
+        }
+      },
+      "position": [
+        0,
+        288
+      ],
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2
+    },
+    {
+      "id": "9edd2a09-046e-412a-b4c1-b12f8ef5db7b",
+      "name": "Has Target?",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "u",
+              "leftValue": "={{ $json.line_user_id }}",
+              "operator": {
+                "operation": "notEmpty",
+                "type": "string"
+              },
+              "rightValue": ""
+            },
+            {
+              "id": "o",
+              "leftValue": "={{ $json.oa_id }}",
+              "operator": {
+                "operation": "notEmpty",
+                "type": "string"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        224,
+        288
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "credentials": {
+        "postgres": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "ab33efb8-a63e-4836-85d9-8741b3beba09",
+      "name": "Dedupe Insert Log",
+      "parameters": {
+        "operation": "executeQuery",
+        "options": {
+          "queryReplacement": "={{ $json.provider_account_id }},={{ $json.service_type }},={{ $json.model }},={{ $json.threshold }},={{ $json.cycle_key }}"
+        },
+        "query": "INSERT INTO notification_log(provider_account_id, service_type, model, threshold, cycle_key)\nVALUES ($1, $2, $3, $4, $5)\nON CONFLICT (provider_account_id, service_type, model, threshold, cycle_key) DO NOTHING\nRETURNING id;"
+      },
+      "position": [
+        448,
+        192
+      ],
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6
+    },
+    {
+      "id": "8b4574ab-2a6d-4e45-a2ac-640406ad104a",
+      "name": "Not Duplicate?",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "d",
+              "leftValue": "={{ $json.id }}",
+              "operator": {
+                "operation": "notEmpty",
+                "type": "string"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        672,
+        192
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "credentials": {
+        "postgres": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "ae266eaf-5bde-4a20-999f-5b91c339efbe",
+      "name": "Lookup OA Token",
+      "parameters": {
+        "operation": "executeQuery",
+        "options": {
+          "queryReplacement": "={{ $('When Called').item.json.oa_id }}"
+        },
+        "query": "SELECT v.decrypted_secret AS token\nFROM line_oa_configs c\nJOIN vault.decrypted_secrets v ON v.id = c.channel_access_token_secret\nWHERE c.oa_id = $1\nLIMIT 1;"
+      },
+      "position": [
+        896,
+        96
+      ],
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6
+    },
+    {
+      "id": "b8569810-6d6c-4413-b7cc-3f43af3c9eb5",
+      "name": "Has Token?",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "t",
+              "leftValue": "={{ $json.token }}",
+              "operator": {
+                "operation": "notEmpty",
+                "type": "string"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        1120,
+        96
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "id": "86b0ac7a-29c9-4d86-8da7-29142a3ea6e3",
+      "name": "Build Message",
+      "parameters": {
+        "jsCode": "const t = $('When Called').item.json;\nconst token = $input.first().json.token;\nconst used = Number(t.used_value) || 0;\nconst limit = Number(t.limit_value) || 0;\nconst percent = limit > 0 ? Math.round((used / limit) * 100) : 0;\nconst provider = 'Gemini';\nconst svc = t.service_type || '';\nconst model = t.model && t.model !== '*' ? t.model : (t.service_type || '');\nconst resetAt = t.reset_at || '';\nlet text = t.message_text || '';\nif (!text) {\n  const thr = String(t.threshold);\n  if (thr === 'RESET') {\n    text = '🔄 ' + provider + ' โควต้ารอบใหม่เริ่มแล้ว\\n' + svc + (model ? (' / ' + model) : '') + '\\nใช้งานได้เต็มจำนวนอีกครั้ง';\n  } else if (thr === '100') {\n    text = '🛑 ' + provider + ' โควต้าหมดแล้ว (100%)\\n' + svc + (model ? (' / ' + model) : '') + '\\nใช้ไป ' + used + '/' + limit + '\\nรีเซ็ต: ' + resetAt;\n  } else {\n    text = '⚠️ ' + provider + ' โควต้าใกล้เต็ม (' + thr + '%)\\n' + svc + (model ? (' / ' + model) : '') + '\\nใช้ไป ' + used + '/' + limit + ' (' + percent + '%)\\nรีเซ็ต: ' + resetAt;\n  }\n}\nreturn [{ json: {\n  line_user_id: t.line_user_id,\n  token,\n  text\n} }];"
+      },
+      "position": [
+        1344,
+        0
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "2344fe20-442e-49ba-b2a5-3a5727a2fcb6",
+      "name": "LINE Push",
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "__REDACTED__"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "jsonBody": "={{ JSON.stringify({ to: $json.line_user_id, messages: [{ type: \"text\", text: $json.text }] }) }}",
+        "method": "POST",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        },
+        "sendBody": true,
+        "sendHeaders": true,
+        "specifyBody": "json",
+        "url": "https://api.line.me/v2/bot/message/push"
+      },
+      "position": [
+        1568,
+        0
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4
+    },
+    {
+      "id": "fdeb253b-bd92-4192-837c-1062d15f278b",
+      "name": "Sent OK",
+      "parameters": {
+        "jsonOutput": "{\"sent\":true}",
+        "mode": "raw",
+        "options": {}
+      },
+      "position": [
+        1792,
+        0
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4
+    },
+    {
+      "id": "1234f2b5-7687-44ba-97a5-b64dfaa14c69",
+      "name": "No OA Config",
+      "parameters": {
+        "jsonOutput": "{\"sent\":false,\"reason\":\"no_oa_config\"}",
+        "mode": "raw",
+        "options": {}
+      },
+      "position": [
+        1344,
+        192
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4
+    },
+    {
+      "id": "3188d948-cbae-43c3-8241-b71b8173786c",
+      "name": "Duplicate Skip",
+      "parameters": {
+        "jsonOutput": "{\"sent\":false,\"reason\":\"duplicate\"}",
+        "mode": "raw",
+        "options": {}
+      },
+      "position": [
+        896,
+        288
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4
+    },
+    {
+      "id": "719ae33f-9c9d-4127-845e-a64f08250fd7",
+      "name": "Missing Target",
+      "parameters": {
+        "jsonOutput": "{\"sent\":false,\"reason\":\"missing_target\"}",
+        "mode": "raw",
+        "options": {}
+      },
+      "position": [
+        448,
+        384
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4
+    }
+  ],
+  "connections": {
+    "Build Message": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "LINE Push",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Dedupe Insert Log": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Not Duplicate?",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Has Target?": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Dedupe Insert Log",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Missing Target",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Has Token?": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Build Message",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "No OA Config",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "LINE Push": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Sent OK",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Lookup OA Token": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Has Token?",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Not Duplicate?": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Lookup OA Token",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Duplicate Skip",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "When Called": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Has Target?",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "nodeGroups": [],
+  "id": "n0XhYWlIRSGV8d3A",
+  "versionId": "9c05ed9e-5ddd-482e-b273-616ed222bfc1",
+  "createdAt": "2026-07-19T06:03:50.889Z",
+  "updatedAt": "2026-07-27T23:45:43.422Z",
+  "parentFolderId": null,
+  "_backup": {
+    "sourceProjectId": "bqGCRU7A2RlF5p6C",
+    "sourceProjectName": "SuperChoice   <superchoice@hotmail.com>",
+    "sourceProjectType": "personal",
+    "sourceFolder": "_root",
+    "credentialValuesIncluded": false,
+    "credentialsRequireManualRebind": true
+  }
+}

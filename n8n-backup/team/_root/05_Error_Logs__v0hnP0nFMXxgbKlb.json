@@ -1,0 +1,705 @@
+{
+  "name": "05_Error_Logs",
+  "nodes": [
+    {
+      "id": "fb130113-1511-43fa-8163-7b4cbfeaf945",
+      "name": "Sticky Note 05",
+      "parameters": {
+        "content": "05_Error_Logs — central error logging + rolling 3-month retention\n\nPATH A (real-time): On Workflow Error -> Build Log Row -> Append Log (Realtime)\nPATH B (daily n8n-API backfill): DISABLED per request. Kept for reference; needs\n  an n8n API credential to re-enable.\nPATH C (daily retention): Daily 03:00 -> Read Logs -> Plan Deletions -> Delete\n  Old Rows. Keeps only a rolling last-3-months window (deletes rows > 90 days).\nMANUAL BACKFILL (one-time): Backfill Now (Manual) -> Historical Rows -> Append\n  Log (Historical). Pre-loaded with this project's collectable error history.\n\nLOG COLUMNS: timestamp | workflow_name | node_name | error_code\n  | error_description | execution_id | source\n\nSETUP: Logs tab lives in the Media spreadsheet. To receive real-time errors,\n  set THIS workflow as the Error Workflow on 01-04 after publishing 05.",
+        "height": 420,
+        "width": 620
+      },
+      "position": [
+        448,
+        704
+      ],
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1
+    },
+    {
+      "id": "f3dba5e9-5263-4325-993a-7f04ea21f667",
+      "name": "On Workflow Error",
+      "parameters": {},
+      "position": [
+        0,
+        0
+      ],
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1
+    },
+    {
+      "id": "501e3fd2-b078-4cfc-a3f7-adb8440d2a9a",
+      "name": "Build Log Row",
+      "parameters": {
+        "jsCode": "// Normalize an Error Trigger payload into ONE compact log row.\nconst j = $input.first().json || {};\nconst ex = j.execution || {};\nconst err = ex.error || {};\nconst wf = j.workflow || {};\n\nconst code = err.httpCode || err.code || err.name || err.errorCode || '';\nconst desc = err.description || err.message || (typeof err === 'string' ? err : '') || 'Unknown error';\nconst nodeName = (err.node && err.node.name) || ex.lastNodeExecuted || '';\n\nreturn [{ json: {\n  timestamp: new Date().toISOString(),\n  workflow_name: wf.name || '',\n  node_name: nodeName,\n  error_code: String(code),\n  error_description: String(desc).slice(0, 500),\n  execution_id: String(ex.id || ''),\n  source: 'error_trigger',\n} }];"
+      },
+      "position": [
+        224,
+        0
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "61dffdad-51e4-44bc-82f3-18c3e7a4f71e",
+      "name": "Append Log (Realtime)",
+      "parameters": {
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [],
+          "schema": [
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "timestamp",
+              "id": "timestamp",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "workflow_name",
+              "id": "workflow_name",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "node_name",
+              "id": "node_name",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "error_code",
+              "id": "error_code",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "error_description",
+              "id": "error_description",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "execution_id",
+              "id": "execution_id",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "source",
+              "id": "source",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {}
+        },
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "Media",
+          "mode": "list",
+          "value": "17UrPIJhIH9kwTNhx5m4I0gsOTQ6uRB3-NGTeEJz4DR4"
+        },
+        "operation": "append",
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Logs"
+        }
+      },
+      "position": [
+        448,
+        0
+      ],
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7
+    },
+    {
+      "id": "c0852c37-3ec8-4b8f-a858-72236fb3f103",
+      "name": "Daily 03:00",
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 3
+            }
+          ]
+        }
+      },
+      "position": [
+        0,
+        320
+      ],
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3
+    },
+    {
+      "alwaysOutputData": true,
+      "disabled": true,
+      "executeOnce": true,
+      "id": "616df20b-ab2c-46b5-b53e-a4fd81195a84",
+      "name": "Read Existing Logs",
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "Media",
+          "mode": "list",
+          "value": "17UrPIJhIH9kwTNhx5m4I0gsOTQ6uRB3-NGTeEJz4DR4"
+        },
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Logs"
+        }
+      },
+      "position": [
+        224,
+        224
+      ],
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7
+    },
+    {
+      "alwaysOutputData": true,
+      "disabled": true,
+      "id": "df30e294-27c1-4ebf-a99e-846fccccc06f",
+      "name": "Fetch Error Executions",
+      "parameters": {
+        "filters": {
+          "status": "error"
+        },
+        "options": {
+          "activeWorkflows": true
+        },
+        "requestOptions": {},
+        "resource": "execution"
+      },
+      "position": [
+        448,
+        224
+      ],
+      "type": "n8n-nodes-base.n8n",
+      "typeVersion": 1
+    },
+    {
+      "disabled": true,
+      "id": "00ce1fa0-ce67-41de-897f-6d93b8e7fa6f",
+      "name": "Build Backfill Rows",
+      "parameters": {
+        "jsCode": "// Turn historical error executions into log rows, keeping only NEW + important\n// ones. Dedup by execution_id, skip older than 3 months / no detail.\nconst RETAIN_MS = 90 * 24 * 60 * 60 * 1000;\nconst cutoff = Date.now() - RETAIN_MS;\n\nconst existing = new Set();\nfor (const it of $('Read Existing Logs').all()) {\n  const j = it.json || {};\n  if (j && Object.keys(j).length && j.execution_id) existing.add(String(j.execution_id));\n}\n\nconst seen = new Set();\nconst out = [];\nfor (const it of $('Fetch Error Executions').all()) {\n  const e = it.json || {};\n  const id = String(e.id || '');\n  if (!id || existing.has(id) || seen.has(id)) continue;\n\n  const whenStr = e.stoppedAt || e.startedAt || '';\n  const when = Date.parse(whenStr);\n  if (!isNaN(when) && when < cutoff) continue;\n\n  const wfName = (e.workflowData && e.workflowData.name) || e.workflowName || '';\n  const rd = (e.data && e.data.resultData) || {};\n  const err = rd.error || {};\n  const code = err.httpCode || err.code || err.name || err.errorCode || '';\n  const desc = err.description || err.message || '';\n  if (!desc) continue;\n  const nodeName = (err.node && err.node.name) || rd.lastNodeExecuted || '';\n\n  seen.add(id);\n  out.push({ json: {\n    timestamp: whenStr || new Date().toISOString(),\n    workflow_name: wfName,\n    node_name: nodeName,\n    error_code: String(code),\n    error_description: String(desc).slice(0, 500),\n    execution_id: id,\n    source: 'backfill',\n  } });\n}\nreturn out;"
+      },
+      "position": [
+        672,
+        224
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "disabled": true,
+      "id": "08192e83-b4b9-47a1-be64-0863030e6682",
+      "name": "Append Log (Backfill)",
+      "parameters": {
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [],
+          "schema": [
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "timestamp",
+              "id": "timestamp",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "workflow_name",
+              "id": "workflow_name",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "node_name",
+              "id": "node_name",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "error_code",
+              "id": "error_code",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "error_description",
+              "id": "error_description",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "execution_id",
+              "id": "execution_id",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "source",
+              "id": "source",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {}
+        },
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "Media",
+          "mode": "list",
+          "value": "17UrPIJhIH9kwTNhx5m4I0gsOTQ6uRB3-NGTeEJz4DR4"
+        },
+        "operation": "append",
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Logs"
+        }
+      },
+      "position": [
+        896,
+        224
+      ],
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7
+    },
+    {
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "executeOnce": true,
+      "id": "12d0e9fd-24ba-41ae-80b2-45e6253524db",
+      "name": "Read Logs (Retention)",
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "Media",
+          "mode": "list",
+          "value": "17UrPIJhIH9kwTNhx5m4I0gsOTQ6uRB3-NGTeEJz4DR4"
+        },
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Logs"
+        }
+      },
+      "position": [
+        224,
+        416
+      ],
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7
+    },
+    {
+      "id": "570b17e0-ff2c-4b68-9304-f1b7c98680eb",
+      "name": "Plan Deletions",
+      "parameters": {
+        "jsCode": "// Find Logs rows older than 3 months and emit contiguous delete ranges.\n// First data row is 2 (header on row 1). Emit ranges DESCENDING so deleting\n// one range does not shift indexes of ranges not yet deleted.\nconst RETAIN_MS = 90 * 24 * 60 * 60 * 1000;\nconst cutoff = Date.now() - RETAIN_MS;\n\nconst rows = $('Read Logs (Retention)').all();\nconst oldRowNums = [];\nfor (let i = 0; i < rows.length; i++) {\n  const j = rows[i].json || {};\n  if (!j || !Object.keys(j).length) continue;\n  const ts = Date.parse(j.timestamp || '');\n  const sheetRow = i + 2;\n  if (!isNaN(ts) && ts < cutoff) oldRowNums.push(sheetRow);\n}\n\noldRowNums.sort((a, b) => a - b);\nconst ranges = [];\nlet start = null, prev = null;\nfor (const r of oldRowNums) {\n  if (start === null) { start = r; prev = r; }\n  else if (r === prev + 1) { prev = r; }\n  else { ranges.push({ startIndex: start, numberToDelete: prev - start + 1 }); start = r; prev = r; }\n}\nif (start !== null) ranges.push({ startIndex: start, numberToDelete: prev - start + 1 });\n\nranges.sort((a, b) => b.startIndex - a.startIndex);\nreturn ranges.map(r => ({ json: r }));",
+        "parameters": {
+          "jsCode": "// Find Logs rows older than the retention window and emit contiguous delete\n// ranges. First data row is 2 (header on row 1). Emit ranges DESCENDING so\n// deleting one range does not shift indexes of ranges not yet deleted.\n//\n// [Claude edit] 2026-07-26 — retention window now read from chatbot_config\n// (log_retention_days), falling back to the original hardcoded 90 days if the\n// config row hasn't set it yet. Restore: n8n workflow version history on\n// 05_Error_Logs (v0hnP0nFMXxgbKlb).\nlet cfg = {};\ntry { cfg = ($('Load Config').first() || {}).json || {}; } catch (e) { cfg = {}; }\nlet retentionDays = Number(cfg.log_retention_days);\nif (cfg.log_retention_days === null || cfg.log_retention_days === undefined || cfg.log_retention_days === '' || !isFinite(retentionDays)) retentionDays = 90;\nconst RETAIN_MS = retentionDays * 24 * 60 * 60 * 1000;\nconst cutoff = Date.now() - RETAIN_MS;\n\nconst rows = $('Read Logs (Retention)').all();\nconst oldRowNums = [];\nfor (let i = 0; i < rows.length; i++) {\n  const j = rows[i].json || {};\n  if (!j || !Object.keys(j).length) continue;\n  const ts = Date.parse(j.timestamp || '');\n  const sheetRow = i + 2;\n  if (!isNaN(ts) && ts < cutoff) oldRowNums.push(sheetRow);\n}\n\noldRowNums.sort((a, b) => a - b);\nconst ranges = [];\nlet start = null, prev = null;\nfor (const r of oldRowNums) {\n  if (start === null) { start = r; prev = r; }\n  else if (r === prev + 1) { prev = r; }\n  else { ranges.push({ startIndex: start, numberToDelete: prev - start + 1 }); start = r; prev = r; }\n}\nif (start !== null) ranges.push({ startIndex: start, numberToDelete: prev - start + 1 });\n\nranges.sort((a, b) => b.startIndex - a.startIndex);\nreturn ranges.map(r => ({ json: r }));"
+        }
+      },
+      "position": [
+        448,
+        416
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "249fe70f-eb51-4a94-ac62-50b2728b019d",
+      "name": "Delete Old Rows",
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "Media",
+          "mode": "list",
+          "value": "17UrPIJhIH9kwTNhx5m4I0gsOTQ6uRB3-NGTeEJz4DR4"
+        },
+        "numberToDelete": "={{ $json.numberToDelete }}",
+        "operation": "delete",
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Logs"
+        },
+        "startIndex": "={{ $json.startIndex }}"
+      },
+      "position": [
+        672,
+        416
+      ],
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7
+    },
+    {
+      "id": "1f782266-041c-49b0-941b-ed1bdea068d9",
+      "name": "Backfill Now (Manual)",
+      "parameters": {},
+      "position": [
+        0,
+        640
+      ],
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1
+    },
+    {
+      "id": "713abeaf-a656-45d3-b35c-00cf2e6d1d29",
+      "name": "Historical Rows",
+      "parameters": {
+        "jsCode": "// One-time historical backfill of THIS project's collectable error executions.\n// Captured from the n8n execution history (03_YouTube_Pipeline & 04_RAG_Chat).\n// Each row is a distinct lesson-learned. Re-runnable: dedup on append is not\n// applied here, so run once. source = \"backfill\".\nconst rows = [\n  { timestamp: '2026-07-15T14:24:48.571Z', workflow_name: '04_RAG_Chat', node_name: 'Gemini Chat Model', error_code: '429', error_description: 'Too many requests — Gemini free-tier quota exceeded (generate_content_free_tier_input_token_count, limit 250000/min, gemini-2.5-flash). Prompts grew after ingesting large docs.', execution_id: '328' },\n  { timestamp: '2026-07-15T13:55:47.030Z', workflow_name: '04_RAG_Chat', node_name: 'Gemini Chat Model', error_code: '429', error_description: 'Too many requests — Gemini free-tier input-token quota exceeded (gemini-2.5-flash).', execution_id: '327' },\n  { timestamp: '2026-07-15T13:47:16.545Z', workflow_name: '04_RAG_Chat', node_name: 'Gemini Chat Model', error_code: '429', error_description: 'Too many requests — Gemini free-tier input-token quota exceeded (gemini-2.5-flash).', execution_id: '325' },\n  { timestamp: '2026-07-15T13:31:27.780Z', workflow_name: '04_RAG_Chat', node_name: 'LINE Reply', error_code: '400', error_description: 'LINE reply rejected: messages[0].text length must be between 0 and 5000. Answer exceeded LINE 5000-char/message limit (huge Markdown table).', execution_id: '323' },\n  { timestamp: '2026-07-14T12:12:46.855Z', workflow_name: '04_RAG_Chat', node_name: 'LINE Reply', error_code: '401', error_description: 'Authentication failed — invalid LINE channel access token in Authorization header.', execution_id: '307' },\n  { timestamp: '2026-07-14T00:02:39.951Z', workflow_name: '04_RAG_Chat', node_name: 'Gemini Chat Model', error_code: '503', error_description: 'Gemini 503 Service Unavailable (high demand). Also: Match Chunks returned PGRST202 — match_documents RPC not found in Supabase (function was missing).', execution_id: '297' },\n  { timestamp: '2026-07-13T17:12:20.883Z', workflow_name: '03_YouTube_Pipeline', node_name: 'Upsert Chunk', error_code: '400', error_description: 'Supabase upsert failed: expected 1536 dimensions, not 3072 (embedding dimension mismatch vs pgvector column).', execution_id: '289' },\n  { timestamp: '2026-07-13T17:08:32.132Z', workflow_name: '03_YouTube_Pipeline', node_name: 'Upsert Chunk', error_code: '400', error_description: 'Supabase upsert failed: expected 1536 dimensions, not 3072 (embedding dimension mismatch).', execution_id: '288' },\n  { timestamp: '2026-07-12T17:05:39.060Z', workflow_name: '03_YouTube_Pipeline', node_name: 'Supabase Insert', error_code: '400', error_description: 'Insert failed: null value in column document_id violates not-null constraint.', execution_id: '280' },\n  { timestamp: '2026-07-12T16:36:50.697Z', workflow_name: '03_YouTube_Pipeline', node_name: 'Supabase Insert', error_code: '400', error_description: 'Insert failed: null value in column source_id violates not-null constraint.', execution_id: '274' },\n];\nreturn rows.map(r => ({ json: { ...r, source: 'backfill' } }));"
+      },
+      "position": [
+        224,
+        640
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "20d53068-36a6-4f10-af67-439499f1e95c",
+      "name": "Append Log (Historical)",
+      "parameters": {
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [],
+          "schema": [
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "timestamp",
+              "id": "timestamp",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "workflow_name",
+              "id": "workflow_name",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "node_name",
+              "id": "node_name",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "error_code",
+              "id": "error_code",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "error_description",
+              "id": "error_description",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "execution_id",
+              "id": "execution_id",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": false,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "source",
+              "id": "source",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {}
+        },
+        "documentId": {
+          "__rl": true,
+          "cachedResultName": "Media",
+          "mode": "list",
+          "value": "17UrPIJhIH9kwTNhx5m4I0gsOTQ6uRB3-NGTeEJz4DR4"
+        },
+        "operation": "append",
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Logs"
+        }
+      },
+      "position": [
+        448,
+        640
+      ],
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7
+    },
+    {
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "id": "16fa3c9a-c402-4a64-87e1-2d2c98f018c8",
+      "name": "Load Config",
+      "notes": "[Claude edit] 2026-07-26 - added so Plan Deletions can read log_retention_days from chatbot_config",
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "chatbot_config",
+          "cachedResultUrl": "/projects/fTE250SCnzLLnqUC/datatables/5nWp9I7fCE4Gmnfx",
+          "mode": "list",
+          "value": "5nWp9I7fCE4Gmnfx"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "config_key",
+              "keyValue": "default"
+            }
+          ]
+        },
+        "limit": 1,
+        "matchType": "allConditions",
+        "operation": "get"
+      },
+      "position": [
+        224,
+        480
+      ],
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1
+    }
+  ],
+  "connections": {
+    "Backfill Now (Manual)": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Historical Rows",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Build Backfill Rows": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Append Log (Backfill)",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Build Log Row": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Append Log (Realtime)",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Daily 03:00": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Read Existing Logs",
+            "type": "main"
+          },
+          {
+            "index": 0,
+            "node": "Read Logs (Retention)",
+            "type": "main"
+          },
+          {
+            "index": 0,
+            "node": "Load Config",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Fetch Error Executions": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Build Backfill Rows",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Historical Rows": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Append Log (Historical)",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "On Workflow Error": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Build Log Row",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Plan Deletions": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Delete Old Rows",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Read Existing Logs": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Fetch Error Executions",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Read Logs (Retention)": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Plan Deletions",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionOrder": "v1",
+    "timeSavedMode": "fixed"
+  },
+  "tags": [],
+  "nodeGroups": [],
+  "id": "v0hnP0nFMXxgbKlb",
+  "versionId": "c132147c-5f3e-4410-97fb-dd9a6da24a75",
+  "createdAt": "2026-07-19T07:47:54.209Z",
+  "updatedAt": "2026-07-26T10:37:03.814Z",
+  "parentFolderId": null,
+  "_backup": {
+    "sourceProjectId": "fTE250SCnzLLnqUC",
+    "sourceProjectName": "SuperChoiceAI",
+    "sourceProjectType": "team",
+    "sourceFolder": "_root",
+    "credentialValuesIncluded": false,
+    "credentialsRequireManualRebind": true
+  }
+}

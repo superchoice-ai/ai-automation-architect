@@ -1,0 +1,187 @@
+{
+  "name": "CMT-02 Media Validation",
+  "nodes": [
+    {
+      "id": "53bde872-b747-4a49-aca1-075399635a29",
+      "name": "Validated Intake Input",
+      "parameters": {},
+      "position": [
+        -720,
+        112
+      ],
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "cfb4423d-a68f-4452-8d1a-7634c600a849",
+      "name": "Validate Media Manifest",
+      "parameters": {
+        "jsCode": "const x=$json||{}; const media=x.media||[]; const errors=[]; if(x.mode==='READY_MEDIA'&&media.length===0) errors.push('media_required'); for(const m of media){if(!m.url&&!m.file_id) errors.push('media_reference_required'); if(m.size_bytes&&m.size_bytes>5368709120) errors.push('media_too_large');} return [{json:{...x,media_validation:{valid:errors.length===0,errors,count:media.length,checked_at:new Date().toISOString()}}}];"
+      },
+      "position": [
+        -480,
+        112
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "bc23f16c-6e2f-4d3b-893d-43349f10bbdf",
+      "name": "Media Valid?",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{$json.media_validation.valid}}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        -240,
+        112
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "id": "56745567-6f3a-41c5-87ee-2e607869e521",
+      "name": "Media Pass",
+      "parameters": {
+        "jsCode": "return $input.all().map(i=>({json:{...i.json,status:'MEDIA_VALIDATED',next:'CMT-03 Approval & Scheduling Gate'}}));"
+      },
+      "position": [
+        0,
+        0
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "a992539a-440d-450c-84cc-3153923f7722",
+      "name": "Media Reject",
+      "parameters": {
+        "jsCode": "return $input.all().map(i=>({json:{content_id:i.json.content_id||null,status:'MEDIA_REJECTED',errors:i.json.media_validation.errors,audit_safe:true}}));"
+      },
+      "position": [
+        0,
+        208
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "7a9457ad-27f5-4992-904e-71f33d0cb586",
+      "name": "Download file",
+      "parameters": {
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.media_drive_file_id || $json.file_id }}"
+        },
+        "operation": "download",
+        "options": {}
+      },
+      "position": [
+        -368,
+        256
+      ],
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3
+    }
+  ],
+  "connections": {
+    "Download file": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Validate Media Manifest",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Media Valid?": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Media Pass",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Media Reject",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Validate Media Manifest": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Media Valid?",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Validated Intake Input": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Download file",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "nodeGroups": [],
+  "id": "KG1ELbbz9HVJIUgC",
+  "versionId": "052347a9-4f03-488b-a830-9211bf98997f",
+  "createdAt": "2026-08-03T15:24:28.829Z",
+  "updatedAt": "2026-08-07T18:10:30.226Z",
+  "parentFolderId": "BgEM2QOTFsbe02On",
+  "_backup": {
+    "sourceProjectId": "fTE250SCnzLLnqUC",
+    "sourceProjectName": "SuperChoiceAI",
+    "sourceProjectType": "team",
+    "sourceFolder": "Contents-MKT",
+    "credentialValuesIncluded": false,
+    "credentialsRequireManualRebind": true
+  }
+}

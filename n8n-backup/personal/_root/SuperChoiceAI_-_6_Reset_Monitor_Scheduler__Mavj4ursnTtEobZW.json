@@ -1,0 +1,462 @@
+{
+  "name": "SuperChoiceAI - 6) Reset + Monitor Scheduler",
+  "nodes": [
+    {
+      "id": "91893523-9af3-4c5c-aa23-1e90e50086fa",
+      "name": "Daily 00:05",
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtMinute": 5
+            }
+          ]
+        }
+      },
+      "position": [
+        0,
+        96
+      ],
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3
+    },
+    {
+      "id": "ba4b1126-08cb-4260-b37a-fd7e01d08b22",
+      "name": "Compute Keys",
+      "parameters": {
+        "jsCode": "const nowBkk = $now.setZone('Asia/Bangkok');\nconst dailyKey = nowBkk.toFormat('yyyy-MM-dd');\nconst monthlyKey = nowBkk.toFormat('yyyy-MM');\nconst nextDaily = nowBkk.plus({ days: 1 }).startOf('day').toISO();\nconst nextMonthly = nowBkk.plus({ months: 1 }).startOf('month').toISO();\nreturn [{ json: { dailyKey, monthlyKey, nextDaily, nextMonthly } }];"
+      },
+      "position": [
+        224,
+        96
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "credentials": {
+        "postgres": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "disabled": true,
+      "id": "c7e28762-14e9-4e81-98c1-082fe4e96e30",
+      "name": "Reset Rolled-Over",
+      "parameters": {
+        "operation": "executeQuery",
+        "options": {
+          "queryReplacement": "={{ $json.dailyKey }},={{ $json.monthlyKey }},={{ $json.nextDaily }},={{ $json.nextMonthly }}"
+        },
+        "query": "UPDATE quota_usage qu\nSET used_value = 0,\n    cycle_key = CASE WHEN qp.reset_policy = 'monthly' THEN $2 ELSE $1 END,\n    reset_at  = CASE WHEN qp.reset_policy = 'monthly' THEN $4::timestamptz ELSE $3::timestamptz END,\n    updated_at = now()\nFROM quota_policies qp, provider_accounts pa, app_users u, line_accounts la\nWHERE pa.id = qu.provider_account_id\n  AND qp.provider_code = pa.provider_code\n  AND qp.service_type = qu.service_type\n  AND qp.scope = qu.scope\n  AND qp.license_type = pa.license_type\n  AND u.id = pa.app_user_id\n  AND la.app_user_id = u.id\n  AND (\n    (qp.reset_policy = 'daily'   AND qu.cycle_key <> $1) OR\n    (qp.reset_policy = 'monthly' AND qu.cycle_key <> $2)\n  )\nRETURNING qu.provider_account_id, qu.service_type, qu.model, qu.cycle_key, la.line_user_id, la.oa_id;"
+      },
+      "position": [
+        448,
+        0
+      ],
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6
+    },
+    {
+      "disabled": true,
+      "id": "76c1eba4-6f2c-4786-8aea-8eb7f0bdefe7",
+      "name": "Notify RESET",
+      "parameters": {
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": false
+        },
+        "workflowId": {
+          "__rl": true,
+          "cachedResultName": "SuperChoiceAI - 3) LINE Notify + Dedupe (sub)",
+          "mode": "list",
+          "value": "n0XhYWlIRSGV8d3A"
+        },
+        "workflowInputs": {
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true,
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "line_user_id",
+              "id": "line_user_id",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "oa_id",
+              "id": "oa_id",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "provider_account_id",
+              "id": "provider_account_id",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "service_type",
+              "id": "service_type",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "model",
+              "id": "model",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "threshold",
+              "id": "threshold",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "used_value",
+              "id": "used_value",
+              "required": false,
+              "type": "number"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "limit_value",
+              "id": "limit_value",
+              "required": false,
+              "type": "number"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "reset_at",
+              "id": "reset_at",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "cycle_key",
+              "id": "cycle_key",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "message_text",
+              "id": "message_text",
+              "removed": false,
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "cycle_key": "={{ $json.cycle_key }}",
+            "limit_value": 0,
+            "line_user_id": "={{ $json.line_user_id }}",
+            "model": "={{ $json.model }}",
+            "oa_id": "={{ $json.oa_id }}",
+            "provider_account_id": "={{ $json.provider_account_id }}",
+            "service_type": "={{ $json.service_type }}",
+            "threshold": "RESET",
+            "used_value": 0
+          }
+        }
+      },
+      "position": [
+        672,
+        0
+      ],
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3
+    },
+    {
+      "credentials": {
+        "postgres": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "309d9dea-2df6-4c05-9c0f-fd4af72bc4a3",
+      "name": "Reconciliation Sweep",
+      "parameters": {
+        "operation": "executeQuery",
+        "options": {},
+        "query": "SELECT qu.provider_account_id, qu.service_type, qu.model, qu.used_value, qu.limit_value,\n       qu.reset_at, qu.cycle_key, la.line_user_id, la.oa_id,\n       round(qu.used_value::numeric / NULLIF(qu.limit_value, 0) * 100) AS percent\nFROM quota_usage qu\nJOIN provider_accounts pa ON pa.id = qu.provider_account_id\nJOIN app_users u ON u.id = pa.app_user_id\nJOIN line_accounts la ON la.app_user_id = u.id\nWHERE pa.status = 'active';"
+      },
+      "position": [
+        448,
+        192
+      ],
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6
+    },
+    {
+      "id": "75f1581f-1e4b-49f4-a772-7363be8e2706",
+      "name": "Sweep Thresholds",
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(i => i.json);\nconst thresholds = [70, 80, 90, 100];\nconst out = [];\nfor (const r of rows) {\n  const limit = Number(r.limit_value) || 0;\n  const used = Number(r.used_value) || 0;\n  if (limit <= 0) continue;\n  const percent = (used / limit) * 100;\n  for (const t of thresholds) {\n    if (percent >= t) {\n      out.push({ json: {\n        line_user_id: r.line_user_id,\n        oa_id: r.oa_id,\n        provider_account_id: r.provider_account_id,\n        service_type: r.service_type,\n        model: r.model,\n        threshold: String(t),\n        used_value: used,\n        limit_value: limit,\n        reset_at: r.reset_at,\n        cycle_key: r.cycle_key\n      }});\n    }\n  }\n}\nreturn out;"
+      },
+      "position": [
+        672,
+        192
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "bbe840c6-d148-4182-bce6-7c320d4a42b2",
+      "name": "Notify Missed",
+      "parameters": {
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": false
+        },
+        "workflowId": {
+          "__rl": true,
+          "cachedResultName": "SuperChoiceAI - 3) LINE Notify + Dedupe (sub)",
+          "mode": "list",
+          "value": "n0XhYWlIRSGV8d3A"
+        },
+        "workflowInputs": {
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true,
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "line_user_id",
+              "id": "line_user_id",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "oa_id",
+              "id": "oa_id",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "provider_account_id",
+              "id": "provider_account_id",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "service_type",
+              "id": "service_type",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "model",
+              "id": "model",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "threshold",
+              "id": "threshold",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "used_value",
+              "id": "used_value",
+              "required": false,
+              "type": "number"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "limit_value",
+              "id": "limit_value",
+              "required": false,
+              "type": "number"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "reset_at",
+              "id": "reset_at",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "cycle_key",
+              "id": "cycle_key",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "message_text",
+              "id": "message_text",
+              "removed": false,
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "cycle_key": "={{ $json.cycle_key }}",
+            "limit_value": "={{ $json.limit_value }}",
+            "line_user_id": "={{ $json.line_user_id }}",
+            "model": "={{ $json.model }}",
+            "oa_id": "={{ $json.oa_id }}",
+            "provider_account_id": "={{ $json.provider_account_id }}",
+            "reset_at": "={{ $json.reset_at }}",
+            "service_type": "={{ $json.service_type }}",
+            "threshold": "={{ $json.threshold }}",
+            "used_value": "={{ $json.used_value }}"
+          }
+        }
+      },
+      "position": [
+        896,
+        192
+      ],
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3
+    }
+  ],
+  "connections": {
+    "Compute Keys": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Reset Rolled-Over",
+            "type": "main"
+          },
+          {
+            "index": 0,
+            "node": "Reconciliation Sweep",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Daily 00:05": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Compute Keys",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Reconciliation Sweep": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Sweep Thresholds",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Reset Rolled-Over": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Notify RESET",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Sweep Thresholds": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Notify Missed",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "nodeGroups": [],
+  "id": "Mavj4ursnTtEobZW",
+  "versionId": "8cc15c89-224e-4f53-bcaa-35d2c6ea9d58",
+  "createdAt": "2026-07-19T06:11:40.398Z",
+  "updatedAt": "2026-07-27T23:45:52.286Z",
+  "parentFolderId": null,
+  "_backup": {
+    "sourceProjectId": "bqGCRU7A2RlF5p6C",
+    "sourceProjectName": "SuperChoice   <superchoice@hotmail.com>",
+    "sourceProjectType": "personal",
+    "sourceFolder": "_root",
+    "credentialValuesIncluded": false,
+    "credentialsRequireManualRebind": true
+  }
+}

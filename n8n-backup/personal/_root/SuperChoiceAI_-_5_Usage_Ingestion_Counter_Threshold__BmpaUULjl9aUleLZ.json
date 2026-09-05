@@ -1,0 +1,457 @@
+{
+  "name": "SuperChoiceAI - 5) Usage Ingestion + Counter + Threshold",
+  "nodes": [
+    {
+      "id": "4506463a-dd2c-45b3-a6e1-21d605738b2d",
+      "name": "Usage Webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "options": {},
+        "path": "usage/track",
+        "responseMode": "responseNode"
+      },
+      "position": [
+        0,
+        288
+      ],
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "webhookId": "de94e290-89dd-4464-8771-0d2e211e9b61"
+    },
+    {
+      "id": "6854b8c8-088e-44af-bc5c-c685447aebd9",
+      "name": "Normalize",
+      "parameters": {
+        "jsCode": "const b = ($input.first().json.body) || {};\nconst unit = b.unit || 'requests';\nconst delta = (unit === 'tokens') ? (Number(b.tokens) || 0) : (Number(b.delta) || 1);\n// cycle_key in Asia/Bangkok\nconst nowBkk = $now.setZone('Asia/Bangkok');\nconst cycle_key = nowBkk.toFormat('yyyy-MM-dd');\nconst reset_at = nowBkk.plus({ days: 1 }).startOf('day').toISO();\nreturn [{ json: {\n  line_user_id: b.line_user_id || '',\n  oa_id: b.oa_id || '',\n  provider_code: b.provider_code || 'gemini',\n  service_type: b.service_type || 'chat',\n  model: b.model || 'unknown',\n  license_type: b.license_type || 'free',\n  unit,\n  effective_delta: delta,\n  ratelimit_headers: b.ratelimit_headers || null,\n  cycle_key,\n  reset_at\n} }];"
+      },
+      "position": [
+        224,
+        288
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "credentials": {
+        "postgres": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "e7db1fdf-8009-4a09-8dd2-da0873467bd9",
+      "name": "Resolve Account",
+      "parameters": {
+        "operation": "executeQuery",
+        "options": {
+          "queryReplacement": "={{ $json.line_user_id }},={{ $json.oa_id }},={{ $json.provider_code }}"
+        },
+        "query": "SELECT pa.id, pa.license_type\nFROM provider_accounts pa\nJOIN app_users u ON u.id = pa.app_user_id\nJOIN line_accounts la ON la.app_user_id = u.id\nWHERE la.line_user_id = $1 AND la.oa_id = $2 AND pa.provider_code = $3 AND pa.status = 'active'\nLIMIT 1;"
+      },
+      "position": [
+        448,
+        288
+      ],
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6
+    },
+    {
+      "id": "ab3a2e14-d901-4817-8caf-e5d38ed8aba1",
+      "name": "Has Account?",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "a",
+              "leftValue": "={{ $json.id }}",
+              "operator": {
+                "operation": "notEmpty",
+                "type": "string"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        672,
+        288
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "credentials": {
+        "postgres": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "id": "8dee0316-ed4b-45d8-8c4c-5f6e12d2a0d6",
+      "name": "Upsert Counters",
+      "parameters": {
+        "operation": "executeQuery",
+        "options": {
+          "queryReplacement": "={{ $('Resolve Account').item.json.id }},={{ $('Normalize').item.json.service_type }},={{ $('Normalize').item.json.model }},={{ $('Normalize').item.json.license_type }},={{ $('Normalize').item.json.provider_code }},={{ $('Normalize').item.json.unit }},={{ $('Normalize').item.json.effective_delta }},={{ $('Normalize').item.json.cycle_key }},={{ $('Normalize').item.json.reset_at }}"
+        },
+        "query": "WITH params AS (\n  SELECT $1::uuid AS acc,\n         $2::text AS service_type,\n         $3::text AS model,\n         $4::text AS license,\n         $5::text AS provider,\n         $6::text AS unit,\n         $7::bigint AS delta,\n         $8::text AS cycle_key,\n         $9::timestamptz AS reset_at\n), rows AS (\n  SELECT p.acc, p.service_type, '*'::text AS model, 'service'::text AS scope, p.unit, p.delta, p.cycle_key, p.reset_at,\n    (SELECT limit_value FROM quota_policies qp WHERE qp.provider_code=p.provider AND qp.service_type=p.service_type AND qp.license_type=p.license AND qp.scope='service' AND qp.model='*' LIMIT 1) AS limit_value\n  FROM params p\n  UNION ALL\n  SELECT p.acc, p.service_type, p.model, 'model'::text AS scope, p.unit, p.delta, p.cycle_key, p.reset_at,\n    (SELECT limit_value FROM quota_policies qp WHERE qp.provider_code=p.provider AND qp.service_type=p.service_type AND qp.license_type=p.license AND qp.scope='model' AND qp.model=p.model LIMIT 1) AS limit_value\n  FROM params p\n)\nINSERT INTO quota_usage(provider_account_id, service_type, model, scope, unit, used_value, limit_value, cycle_key, reset_at)\nSELECT acc, service_type, model, scope, unit, delta, limit_value, cycle_key, reset_at FROM rows\nON CONFLICT (provider_account_id, service_type, model, scope)\nDO UPDATE SET used_value = quota_usage.used_value + EXCLUDED.used_value, updated_at = now()\nRETURNING provider_account_id, service_type, model, scope, used_value, limit_value, reset_at, cycle_key;"
+      },
+      "position": [
+        896,
+        192
+      ],
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6
+    },
+    {
+      "credentials": {
+        "postgres": {
+          "id": "__REDACTED__",
+          "name": "__REDACTED__"
+        }
+      },
+      "executeOnce": true,
+      "id": "5ea4e112-79ca-47fc-911c-9b3cbbae9551",
+      "name": "Append History",
+      "parameters": {
+        "operation": "executeQuery",
+        "options": {
+          "queryReplacement": "={{ $('Resolve Account').item.json.id }},={{ $('Normalize').item.json.service_type }},={{ $('Normalize').item.json.model }},={{ $('Normalize').item.json.effective_delta }},={{ $('Normalize').item.json.unit }}"
+        },
+        "query": "INSERT INTO usage_history(provider_account_id, service_type, model, delta, unit, source)\nVALUES ($1::uuid, $2, $3, $4::bigint, $5, 'webhook');"
+      },
+      "position": [
+        1120,
+        0
+      ],
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6
+    },
+    {
+      "id": "e52451c3-0533-421a-960f-fc5e34c374e2",
+      "name": "Build Summary",
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(i => i.json);\nconst usage = rows.map(r => ({\n  service_type: r.service_type,\n  model: r.model,\n  scope: r.scope,\n  used: Number(r.used_value) || 0,\n  limit: Number(r.limit_value) || 0,\n  percent: (Number(r.limit_value) > 0) ? Math.round((Number(r.used_value) / Number(r.limit_value)) * 100) : 0\n}));\nreturn [{ json: { ok: true, usage } }];"
+      },
+      "position": [
+        1120,
+        192
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "38aa6641-4c29-4d87-83f0-a91ebcb6c422",
+      "name": "Respond OK",
+      "parameters": {
+        "options": {
+          "responseCode": 200
+        },
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "position": [
+        1344,
+        192
+      ],
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5
+    },
+    {
+      "id": "d3841257-4f03-438a-95ac-47f4510da399",
+      "name": "Threshold Check",
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(i => i.json);\nconst norm = $('Normalize').first().json;\nconst thresholds = [70, 80, 90, 100];\nconst out = [];\nfor (const r of rows) {\n  const used = Number(r.used_value) || 0;\n  const limit = Number(r.limit_value) || 0;\n  if (limit <= 0) continue;\n  const percent = (used / limit) * 100;\n  for (const t of thresholds) {\n    if (percent >= t) {\n      out.push({ json: {\n        line_user_id: norm.line_user_id,\n        oa_id: norm.oa_id,\n        provider_account_id: r.provider_account_id,\n        service_type: r.service_type,\n        model: r.model,\n        threshold: String(t),\n        used_value: used,\n        limit_value: limit,\n        reset_at: r.reset_at,\n        cycle_key: r.cycle_key\n      }});\n    }\n  }\n}\nreturn out;"
+      },
+      "position": [
+        1120,
+        384
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "fd94b84c-6914-4879-bac8-b7025aeff2ea",
+      "name": "Notify (per threshold)",
+      "parameters": {
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": false
+        },
+        "workflowId": {
+          "__rl": true,
+          "cachedResultName": "SuperChoiceAI - 3) LINE Notify + Dedupe (sub)",
+          "mode": "list",
+          "value": "n0XhYWlIRSGV8d3A"
+        },
+        "workflowInputs": {
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true,
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "line_user_id",
+              "id": "line_user_id",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "oa_id",
+              "id": "oa_id",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "provider_account_id",
+              "id": "provider_account_id",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "service_type",
+              "id": "service_type",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "model",
+              "id": "model",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "threshold",
+              "id": "threshold",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "used_value",
+              "id": "used_value",
+              "required": false,
+              "type": "number"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "limit_value",
+              "id": "limit_value",
+              "required": false,
+              "type": "number"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "reset_at",
+              "id": "reset_at",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "cycle_key",
+              "id": "cycle_key",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "message_text",
+              "id": "message_text",
+              "removed": false,
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "cycle_key": "={{ $json.cycle_key }}",
+            "limit_value": "={{ $json.limit_value }}",
+            "line_user_id": "={{ $json.line_user_id }}",
+            "model": "={{ $json.model }}",
+            "oa_id": "={{ $json.oa_id }}",
+            "provider_account_id": "={{ $json.provider_account_id }}",
+            "reset_at": "={{ $json.reset_at }}",
+            "service_type": "={{ $json.service_type }}",
+            "threshold": "={{ $json.threshold }}",
+            "used_value": "={{ $json.used_value }}"
+          }
+        }
+      },
+      "position": [
+        1344,
+        384
+      ],
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3
+    },
+    {
+      "id": "9c664e11-b2dc-44d1-9f54-74095bde1954",
+      "name": "Respond No Account",
+      "parameters": {
+        "options": {
+          "responseCode": 200
+        },
+        "respondWith": "json",
+        "responseBody": "{\"ok\":false,\"reason\":\"no_account\"}"
+      },
+      "position": [
+        896,
+        384
+      ],
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5
+    }
+  ],
+  "connections": {
+    "Build Summary": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Respond OK",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Has Account?": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Upsert Counters",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Respond No Account",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Normalize": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Resolve Account",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Resolve Account": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Has Account?",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Threshold Check": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Notify (per threshold)",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Upsert Counters": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Append History",
+            "type": "main"
+          },
+          {
+            "index": 0,
+            "node": "Build Summary",
+            "type": "main"
+          },
+          {
+            "index": 0,
+            "node": "Threshold Check",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Usage Webhook": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Normalize",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "availableInMCP": true,
+    "binaryMode": "separate",
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "nodeGroups": [],
+  "id": "BmpaUULjl9aUleLZ",
+  "versionId": "ebf81eef-a712-4ac8-b5a4-02d7cafb42a9",
+  "createdAt": "2026-07-19T06:10:34.294Z",
+  "updatedAt": "2026-07-27T23:45:46.970Z",
+  "parentFolderId": null,
+  "_backup": {
+    "sourceProjectId": "bqGCRU7A2RlF5p6C",
+    "sourceProjectName": "SuperChoice   <superchoice@hotmail.com>",
+    "sourceProjectType": "personal",
+    "sourceFolder": "_root",
+    "credentialValuesIncluded": false,
+    "credentialsRequireManualRebind": true
+  }
+}
