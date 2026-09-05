@@ -157,3 +157,8 @@ After explicit approval:
 
 If ownership or lineage cannot be proven, STOP and request clarification. Never “clean up what looks like test data.”
 <!-- TEST DATA ISOLATION AND CONTROLLED CLEANUP — END -->
+
+<!-- REUSABLE IMPLEMENTATION REFERENCES — MANDATORY -->
+> [!CAUTION]
+> For AI Assistant, MCP, external AI integrations, Demo options, or Production ↔ Demo promotion, every human and AI MUST read `DEMO_OPTION_ASSISTANT_REFERENCE.MD` and `DEMO_OPTION_MCP_REFERENCE.MD` before implementation or merge. Raw execution logs must not be committed or copied as implementation. Compare current source against both references and verify diff, schema, Auth/RLS, role/branch scope, build, regression, and rollback.
+<!-- REUSABLE IMPLEMENTATION REFERENCES — END -->
